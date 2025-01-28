@@ -19,8 +19,7 @@ func main() {
 	defer db.Close()
 
 	// Create tables if they don't exist
-	err = database.CreateTables(db)
-	if err != nil {
+	if err := database.CreateTables(db); err != nil {
 		log.Fatalf("Failed to create tables: %v", err)
 	}
 
@@ -32,10 +31,10 @@ func main() {
 
 	// Serve static files
 	fs := http.FileServer(http.Dir("."))
-	http.Handle("/pictures/", fs)
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
+	http.Handle("/pictures/", fs)
 
-	// Serve index.html
+	// Serve index.html for root path
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			http.ServeFile(w, r, "index.html")

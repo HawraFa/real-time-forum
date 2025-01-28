@@ -4,15 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Forum</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="static/css/profile.css">
-    <link rel="stylesheet" href="static/css/posts.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/profile.css">
+    <link rel="stylesheet" href="/static/css/posts.css">
 </head>
 <body>
-    <div class="container" id="app">
+    <div id="app">
         <!-- Content will be dynamically inserted here -->
     </div>
-    <script src="static/js/main.js"></script>
+
+    <!-- Core Scripts -->
+    <script src="static/js/utils.js"></script>
+    <script src="static/js/navbar.js"></script>
+    <script src="static/js/login.js"></script>
+    <script src="static/js/registration.js"></script>
     <script src="static/js/posts.js"></script>
+    <script src="static/js/profile.js"></script>
+    <script src="static/js/app.js"></script>
+
+    <!-- Initialize after all scripts are loaded -->
+    <script>
+        // Wait for all scripts to load
+        window.addEventListener('load', function() {
+            console.log('All resources loaded');
+            if (typeof window.init === 'function') {
+                console.log('Calling init function');
+                window.init();
+            } else {
+                console.error('init function not found');
+            }
+        });
+    </script>
 </body>
 </html>

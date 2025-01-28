@@ -6,21 +6,23 @@ import (
 // FilterPostsByCategory retrieves posts associated with specific category IDs
 func FilterPostsByCategory(db *sql.DB, categoryIDs []int) ([]Post, error) {
 	var posts []Post
-	// Iterate over the slice of category IDs to retrieve posts for each category
+	// Get posts for each category ID
 	for _, categoryID := range categoryIDs {
+		// Get post IDs for this category
 		postIDs, err := QueryPostsByCategory(db, categoryID)
 		if err != nil {
 			return nil, err
 		}
+		// Get full post details for each post ID
 		for _, postID := range postIDs {
 			post, err := QueryPostDetails(db, postID)
 			if err != nil {
-				continue
+				continue // Skip posts that can't be retrieved
 			}
 			posts = append(posts, post)
 		}
 	}
-	// Optionally, you could remove duplicate posts if needed
+	// Remove duplicates if needed
 	uniquePosts := removeDuplicatePosts(posts)
 	return uniquePosts, nil
 }

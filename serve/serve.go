@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -61,7 +62,7 @@ func SetupRoutes(db *sql.DB) {
 			return
 		}
 
-		log.Printf("Attempting to register user: %s", user.Username)
+		log.Printf("Attempting to register user: %+v", user) // Debug log
 
 		// Add user to database
 		err := database.InsertUser(
@@ -222,37 +223,19 @@ func SetupRoutes(db *sql.DB) {
 	// Get all categories
 	http.HandleFunc("/api/categories", middleware.EnableCORS(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			json.NewEncoder(w).Encode(map[string]string{
-				"message": "Method not allowed",
-			})
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		categories, err := database.QueryCategories(db)
 		if err != nil {
-			log.Printf("Error getting categories: %v", err)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{
-				"message": "Failed to get categories",
-			})
+			log.Printf("Error fetching categories: %v", err)
+			http.Error(w, "Failed to fetch categories", http.StatusInternalServerError)
 			return
 		}
-
-		// Debug logging
-		log.Printf("Sending categories: %+v", categories)
 
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(categories); err != nil {
-			log.Printf("Error encoding categories: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{
-				"message": "Failed to encode categories",
-			})
-			return
-		}
+		json.NewEncoder(w).Encode(categories)
 	}))
 
 	// Get post count for a category
@@ -482,128 +465,96 @@ func SetupRoutes(db *sql.DB) {
 		})
 	}))
 
-	// Handle password change
-	http.HandleFunc("/api/change-password", middleware.EnableCORS(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			json.NewEncoder(w).Encode(map[string]string{
-				"message": "Method not allowed",
-			})
-			return
-		}
-
-		var passwordChange struct {
-			UserID          int    `json:"userID"`
-			CurrentPassword string `json:"currentPassword"`
-			NewPassword     string `json:"newPassword"`
-		}
-
-		if err := json.NewDecoder(r.Body).Decode(&passwordChange); err != nil {
-			log.Printf("Error decoding password change request: %v", err)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{
-				"message": "Invalid request body",
-			})
-			return
-		}
-
-		log.Printf("Attempting to change password for user %d", passwordChange.UserID)
-
-		// Verify current password
-		user, err := database.GetUserByID(db, passwordChange.UserID)
-		if err != nil {
-			log.Printf("Error getting user: %v", err)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{
-				"message": "User not found",
-			})
-			return
-		}
-
-		// Check if current password matches
-		if !database.CheckPassword(user.Password, passwordChange.CurrentPassword) {
-			log.Printf("Current password mismatch for user %d", passwordChange.UserID)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{
-				"message": "Current password is incorrect",
-			})
-			return
-		}
-
-		// Update password
-		err = database.UpdateUserPassword(db, passwordChange.UserID, passwordChange.NewPassword)
-		if err != nil {
-			log.Printf("Error updating password: %v", err)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{
-				"message": "Failed to update password",
-			})
-			return
-		}
-
-		log.Printf("Successfully changed password for user %d", passwordChange.UserID)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
-			"message": "Password updated successfully",
-		})
-	}))
-
-	// Handle getting all posts or posts by category
+	// Handle all post-related endpoints
 	http.HandleFunc("/api/posts", middleware.EnableCORS(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.Method {
+		case http.MethodGet:
+			// Get all posts
 			posts, err := database.QueryPosts(db, nil)
 			if err != nil {
-				log.Printf("Error getting posts: %v", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				json.NewEncoder(w).Encode(map[string]string{
-					"message": "Failed to get posts",
+					"message": fmt.Sprintf("Failed to get posts: %v", err),
 				})
 				return
 			}
-
-			// Initialize empty array if posts is nil
-			if posts == nil {
-				posts = []database.Post{}
-			}
-
 			json.NewEncoder(w).Encode(posts)
-			return
-		}
 
-		if r.Method == http.MethodPost {
-			w.Header().Set("Content-Type", "application/json")
-
-			// Parse JSON request body
-			var post struct {
-				UserId     int    `json:"userId"`
-				CategoryId int    `json:"categoryId"`
-				Title      string `json:"title"`
-				Content    string `json:"content"`
-			}
-
-			if err := json.NewDecoder(r.Body).Decode(&post); err != nil {
-				log.Printf("Error decoding request body: %v", err)
+		case http.MethodPost:
+			// Create new post
+			err := r.ParseMultipartForm(10 << 20)
+			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				json.NewEncoder(w).Encode(map[string]string{
-					"message": "Invalid request body",
+					"message": "Failed to parse form",
 				})
 				return
 			}
 
-			log.Printf("Received post data: %+v", post)
+			userID := r.Context().Value("currentUser").(int)
+			title := r.FormValue("title")
+			content := r.FormValue("content")
+			categoryIDStr := r.FormValue("categoryId")
 
-			err := database.InsertPost(db, &post.UserId, &post.CategoryId, post.Title, post.Content, "")
+			if title == "" || content == "" || categoryIDStr == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]string{
+					"message": "Missing required fields",
+				})
+				return
+			}
+
+			categoryID, err := strconv.Atoi(categoryIDStr)
 			if err != nil {
-				log.Printf("Error creating post: %v", err)
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]string{
+					"message": "Invalid category ID",
+				})
+				return
+			}
+
+			// Handle image upload
+			var imagePath string
+			file, handler, err := r.FormFile("image")
+			if err == nil && file != nil {
+				defer file.Close()
+
+				// Create pictures directory if it doesn't exist
+				if err := os.MkdirAll("pictures", 0755); err != nil {
+					log.Printf("Error creating pictures directory: %v", err)
+				}
+
+				// Generate unique filename
+				filename := fmt.Sprintf("picture_%d_%s", time.Now().UnixNano(), handler.Filename)
+				imagePath = "pictures/" + filename
+
+				// Create the file
+				dst, err := os.Create(imagePath)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					json.NewEncoder(w).Encode(map[string]string{
+						"message": "Failed to save image",
+					})
+					return
+				}
+				defer dst.Close()
+
+				if _, err := io.Copy(dst, file); err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					json.NewEncoder(w).Encode(map[string]string{
+						"message": "Failed to save image",
+					})
+					return
+				}
+			}
+
+			err = database.InsertPost(db, &userID, &categoryID, title, content, imagePath)
+			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				json.NewEncoder(w).Encode(map[string]string{
-					"message": "Failed to create post",
+					"message": fmt.Sprintf("Failed to create post: %v", err),
 				})
 				return
 			}
@@ -612,40 +563,280 @@ func SetupRoutes(db *sql.DB) {
 			json.NewEncoder(w).Encode(map[string]string{
 				"message": "Post created successfully",
 			})
+		}
+	}))
+
+	// Handle specific post operations (comments, reactions)
+	http.HandleFunc("/api/posts/", middleware.EnableCORS(middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		// Extract path parts
+		pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/posts/"), "/")
+
+		// Handle root /api/posts/ endpoint
+		if pathParts[0] == "" {
+			switch r.Method {
+			case http.MethodGet:
+				// Get all posts
+				posts, err := database.QueryPosts(db, nil)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					json.NewEncoder(w).Encode(map[string]string{
+						"message": fmt.Sprintf("Failed to get posts: %v", err),
+					})
+					return
+				}
+				json.NewEncoder(w).Encode(posts)
+
+			case http.MethodPost:
+				// Create new post
+				err := r.ParseMultipartForm(10 << 20)
+				if err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					json.NewEncoder(w).Encode(map[string]string{
+						"message": "Failed to parse form",
+					})
+					return
+				}
+
+				userID := r.Context().Value("currentUser").(int)
+				title := r.FormValue("title")
+				content := r.FormValue("content")
+				categoryIDStr := r.FormValue("categoryId")
+
+				if title == "" || content == "" || categoryIDStr == "" {
+					w.WriteHeader(http.StatusBadRequest)
+					json.NewEncoder(w).Encode(map[string]string{
+						"message": "Missing required fields",
+					})
+					return
+				}
+
+				categoryID, err := strconv.Atoi(categoryIDStr)
+				if err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					json.NewEncoder(w).Encode(map[string]string{
+						"message": "Invalid category ID",
+					})
+					return
+				}
+
+				// Handle image upload
+				var imagePath string
+				file, handler, err := r.FormFile("image")
+				if err == nil && file != nil {
+					defer file.Close()
+
+					// Create pictures directory if it doesn't exist
+					if err := os.MkdirAll("pictures", 0755); err != nil {
+						log.Printf("Error creating pictures directory: %v", err)
+					}
+
+					// Generate unique filename
+					filename := fmt.Sprintf("picture_%d_%s", time.Now().UnixNano(), handler.Filename)
+					imagePath = "pictures/" + filename
+
+					// Create the file
+					dst, err := os.Create(imagePath)
+					if err != nil {
+						w.WriteHeader(http.StatusInternalServerError)
+						json.NewEncoder(w).Encode(map[string]string{
+							"message": "Failed to save image",
+						})
+						return
+					}
+					defer dst.Close()
+
+					if _, err := io.Copy(dst, file); err != nil {
+						w.WriteHeader(http.StatusInternalServerError)
+						json.NewEncoder(w).Encode(map[string]string{
+							"message": "Failed to save image",
+						})
+						return
+					}
+				}
+
+				err = database.InsertPost(db, &userID, &categoryID, title, content, imagePath)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					json.NewEncoder(w).Encode(map[string]string{
+						"message": fmt.Sprintf("Failed to create post: %v", err),
+					})
+					return
+				}
+
+				w.WriteHeader(http.StatusCreated)
+				json.NewEncoder(w).Encode(map[string]string{
+					"message": "Post created successfully",
+				})
+				return
+			}
 			return
 		}
 
-		w.WriteHeader(http.StatusMethodNotAllowed)
-	}))
+		// Handle category filter
+		if pathParts[0] == "category" && len(pathParts) > 1 {
+			categoryID, err := strconv.Atoi(pathParts[1])
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]string{
+					"message": "Invalid category ID",
+				})
+				return
+			}
 
-	// Handle getting posts by category
-	http.HandleFunc("/api/posts/category/", middleware.EnableCORS(func(w http.ResponseWriter, r *http.Request) {
+			posts, err := database.FilterPostsByCategory(db, []int{categoryID})
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(map[string]string{
+					"message": fmt.Sprintf("Failed to get posts: %v", err),
+				})
+				return
+			}
+
+			json.NewEncoder(w).Encode(posts)
+			return
+		}
+
+		// Handle specific post endpoints
+		postID, err := strconv.Atoi(pathParts[0])
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"message": "Invalid post ID"})
+			return
+		}
+
+		// Handle comments
+		if len(pathParts) > 1 && pathParts[1] == "comments" {
+			handleComments(w, r, db, postID)
+			return
+		}
+
+		// Handle reactions
+		if len(pathParts) > 1 && pathParts[1] == "reactions" {
+			handleReactions(w, r, db, postID)
+			return
+		}
+
+		// Get single post
+		post, err := database.QueryPostDetails(db, postID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"message": fmt.Sprintf("Failed to get post: %v", err),
+			})
+			return
+		}
+
+		json.NewEncoder(w).Encode(post)
+	}, db)))
+
+	// Handle user profile
+	http.HandleFunc("/api/users/", middleware.EnableCORS(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 
-		// Extract category ID from URL
-		parts := strings.Split(r.URL.Path, "/")
-		if len(parts) != 5 {
+		// Extract user ID from URL
+		userIDStr := strings.TrimPrefix(r.URL.Path, "/api/users/")
+		userID, err := strconv.Atoi(userIDStr)
+		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{
+				"message": "Invalid user ID",
+			})
 			return
 		}
 
-		categoryID, err := strconv.Atoi(parts[4])
+		// Get user profile
+		profile, err := database.GetUserProfile(db, userID)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		posts, err := database.GetPostsByCategory(db, categoryID)
-		if err != nil {
-			log.Printf("Error getting posts for category %d: %v", categoryID, err)
 			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"message": fmt.Sprintf("Failed to get user profile: %v", err),
+			})
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(posts)
+		json.NewEncoder(w).Encode(profile)
 	}))
+}
+
+func handleComments(w http.ResponseWriter, r *http.Request, db *sql.DB, postID int) {
+	switch r.Method {
+	case http.MethodGet:
+		comments, err := database.GetPostComments(db, postID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"message": fmt.Sprintf("Failed to get comments: %v", err),
+			})
+			return
+		}
+		json.NewEncoder(w).Encode(comments)
+
+	case http.MethodPost:
+		var comment struct {
+			Content string `json:"content"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&comment); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{
+				"message": "Invalid comment data",
+			})
+			return
+		}
+
+		userID := r.Context().Value("currentUser").(int)
+		err := database.InsertComment(db, postID, userID, comment.Content)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"message": fmt.Sprintf("Failed to add comment: %v", err),
+			})
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Comment added successfully"})
+	}
+}
+
+func handleReactions(w http.ResponseWriter, r *http.Request, db *sql.DB, postID int) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	var reaction struct {
+		Type string `json:"type"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&reaction); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{
+			"message": "Invalid reaction data",
+		})
+		return
+	}
+
+	userID := r.Context().Value("currentUser").(int)
+	err := database.HandleReaction(db, postID, userID, reaction.Type, false)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{
+			"message": fmt.Sprintf("Failed to handle reaction: %v", err),
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Reaction updated"})
+}
+
+func handleImageUpload(file io.Reader, handler *multipart.FileHeader) string {
+	// Implement image upload logic here
+	// This is a placeholder and should be replaced with the actual implementation
+	return ""
 }

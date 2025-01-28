@@ -1,37 +1,39 @@
 package database
 
-import (
-	"time"
-)
+// import (
+// 	"time"
+// )
 
 type User struct {
-	ID       int    `json:"id"`
-	FirstName string `json:"first_name"`
-	LastName string `json:"last_name"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
-	Avatar   string `json:"avatar"`
-	Gender   string `json:"gender"`
-	Age      int    `json:"age"`
-	LastSeen time.Time `json:"last_seen"`
-	IsOnline bool  `json:"is_online"`
+	ID        int    `json:"id"`
+	Username  string `json:"username"`
+	Password  string `json:"-"`
+	Email     string `json:"email"`
+	Avatar    string `json:"avatar"`
+	Gender    string `json:"gender"`
+	Age       int    `json:"age"`
+	FirstName string `json:"firstName"`
+	IsOnline  string  `json:"isOnline"`
+	LastSeen  string  `json:"lastSeen"`
+	LastName  string `json:"lastName"`
+	JoinDate  string `json:"joinDate"`
+	PostCount int    `json:"postCount"`
 }
+
 type Post struct {
 	ID            int       `json:"id"`
 	UserID        int       `json:"user_id"`
 	Title         string    `json:"title"`
 	Content       string    `json:"content"`
 	Image         string    `json:"image,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
-	CategoryID    int  `json:"category_id"`
-	LikesCount    int `json:"likes_count"`    
-	DislikesCount int `json:"dislikes_count"` 
-	CommentsCount int `json:"comments_count"` 
-	Avatar 		  string `json:"avatar"`
-	Username  	  string `json:"username"`
-	Comments 	  []Comment `json:"comments"`
-
+	CreatedAt     string    `json:"created_at"`
+	CategoryID    int       `json:"category_id"`
+	LikesCount    int       `json:"likes_count"`    
+	DislikesCount int       `json:"dislikes_count"` 
+	CommentsCount int       `json:"comments_count"` 
+	Avatar        string    `json:"avatar"`
+	Username      string    `json:"username"`
+	Comments      []Comment `json:"comments"`
 }
 
 // Category represents a category structure
@@ -42,14 +44,15 @@ type Category struct {
 
 // Comment represents a comment structure
 type Comment struct {
-	ID            int
-	PostID        int
-	UserID        int
-	Content       string
-	CreatedAt     string //could comment this but will mess up queries
-	LikesCount    int
-	DislikesCount int
-	Username      string
+	ID            int       `json:"id"`
+	PostID        int       `json:"postId"`
+	UserID        int       `json:"userId"`
+	Content       string    `json:"content"`
+	CreatedAt     string    `json:"createdAt"`
+	LikesCount    int       `json:"likesCount"`
+	DislikesCount int       `json:"dislikesCount"`
+	Username      string    `json:"username"`
+	Avatar        string    `json:"avatar"`
 }
 
 // Reaction represents a reaction structure
@@ -63,13 +66,13 @@ type Reaction struct {
 }
 
 type PrivateMessage struct {
-	ID         int
-	SenderID   int
-	ReceiverID int
-	Content    string
-	CreatedAt  time.Time
-	IsRead     bool
-	Sender     User
+	ID         int       `json:"id"`
+	SenderID   int       `json:"senderId"`
+	ReceiverID int       `json:"receiverId"`
+	Content    string    `json:"content"`
+	CreatedAt  string    `json:"createdAt"`
+	IsRead     bool      `json:"isRead"`
+	Sender     User      `json:"sender"`
 }
 
 type UserProfile struct {
@@ -81,8 +84,8 @@ type UserProfile struct {
 	Age       int       `json:"age"`
 	Gender    string    `json:"gender"`
 	Avatar    string    `json:"avatar"`
-	IsOnline  bool      `json:"isOnline"`
-	LastSeen  time.Time `json:"lastSeen"`
-	JoinDate  time.Time `json:"joinDate"`
+	IsOnline  string    `json:"isOnline"`
+	LastSeen  string    `json:"lastSeen"`
+	JoinDate  string    `json:"joinDate"`
 	PostCount int       `json:"postCount"`
 } 

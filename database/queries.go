@@ -5,7 +5,7 @@ import (
 	"fmt"          // For formatting strings
 	"log"          // For logging errors and important information
 
-	//"time"         // For time-related functions
+	"time"         // For time-related functions
 	"strings" // For string manipulation
 
 	_ "github.com/mattn/go-sqlite3" // Blank import for SQLite3 driver, needed to interact with SQLite databases
@@ -319,7 +319,9 @@ func GetChatUsers(db *sql.DB, currentUserID int) ([]User, error) {
 			return nil, err
 		}
 		if lastMessageTime.Valid {
-			user.LastSeen = lastMessageTime.Time
+			user.LastSeen = lastMessageTime.Time.Format("2006-01-02 15:04:05")
+		} else {
+			user.LastSeen = "" // or some default value like "Never"
 		}
 		users = append(users, user)
 	}
@@ -452,38 +454,54 @@ func GetCategoryName(db *sql.DB, categoryID int) (string, error) {
 	return name, nil
 }
 
-func GetUserProfile(db *sql.DB, userID int) (*UserProfile, error) {
+// GetUserProfile retrieves a user's profile information
+func GetUserProfile(db *sql.DB, userID int) (*User, error) {
 	query := `
-		SELECT u.id, u.username, u.email, u.first_name, u.last_name, 
-			   u.age, u.gender, u.avatar, u.is_online, u.last_seen, u.created_at,
-			   (SELECT COUNT(*) FROM Posts WHERE user_id = u.id) as post_count
+		SELECT u.id, u.username, u.email, u.avatar, u.gender, u.age,
+			   u.first_name, u.last_name, u.created_at, u.is_online, u.last_seen,
+			   (SELECT COUNT(*) FROM Posts WHERE user_id = ?) as post_count
 		FROM Users u
 		WHERE u.id = ?`
 
-	var profile UserProfile
-	err := db.QueryRow(query, userID).Scan(
-		&profile.ID,
-		&profile.Username,
-		&profile.Email,
-		&profile.FirstName,
-		&profile.LastName,
-		&profile.Age,
-		&profile.Gender,
-		&profile.Avatar,
-		&profile.IsOnline,
-		&profile.LastSeen,
-		&profile.JoinDate,
-		&profile.PostCount,
+	var (
+		user User
+		createdAt time.Time
+		lastSeen sql.NullTime
+		isOnline bool
+	)
+
+	err := db.QueryRow(query, userID, userID).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.Avatar,
+		&user.Gender,
+		&user.Age,
+		&user.FirstName,
+		&user.LastName,
+		&createdAt,
+		&isOnline,
+		&lastSeen,
+		&user.PostCount,
 	)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("user not found")
 		}
-		return nil, fmt.Errorf("database error: %v", err)
+		return nil, fmt.Errorf("error querying user profile: %v", err)
 	}
 
-	return &profile, nil
+	// Convert time.Time values to formatted strings
+	user.JoinDate = createdAt.Format("2006-01-02 15:04:05")
+	if lastSeen.Valid {
+		user.LastSeen = lastSeen.Time.Format("2006-01-02 15:04:05")
+	} else {
+		user.LastSeen = "" // or some default value like "Never"
+	}
+	user.IsOnline = fmt.Sprintf("%v", isOnline) // Convert bool to string
+
+	return &user, nil
 }
 
 func UpdateUserOnlineStatus(db *sql.DB, userID int, isOnline bool) error {
@@ -503,7 +521,7 @@ func UpdateUserOnlineStatus(db *sql.DB, userID int, isOnline bool) error {
 				last_seen = CURRENT_TIMESTAMP
 		WHERE id = ?
 	`
-	
+
 	_, err = db.Exec(query, isOnline, userID)
 	if err != nil {
 		return fmt.Errorf("failed to update online status: %v", err)
@@ -521,11 +539,11 @@ func UpdateUserProfile(db *sql.DB, userID int, updates map[string]interface{}) e
 	// Map JSON fields to database columns
 	fieldMapping := map[string]string{
 		"username":  "username",
-		"email":    "email",
+		"email":     "email",
 		"firstName": "first_name",
 		"lastName":  "last_name",
-		"age":      "age",
-		"avatar":   "avatar",
+		"age":       "age",
+		"avatar":    "avatar",
 	}
 
 	// Build the SET clause based on provided updates
@@ -545,7 +563,7 @@ func UpdateUserProfile(db *sql.DB, userID int, updates map[string]interface{}) e
 	query := fmt.Sprintf("UPDATE Users SET %s WHERE id = ?", strings.Join(setFields, ", "))
 	values = append(values, userID)
 
-	log.Printf("Update query: %s", query) // Debug log
+	log.Printf("Update query: %s", query)   // Debug log
 	log.Printf("Update values: %v", values) // Debug log
 
 	// Execute the update
@@ -574,20 +592,20 @@ func GetNextPictureID(db *sql.DB) (int, error) {
 		FROM Users 
 		WHERE avatar LIKE 'pictures/picture_%'
 	`
-	
+
 	var nextID int
 	err := db.QueryRow(query).Scan(&nextID)
 	if err != nil {
 		return 0, fmt.Errorf("error getting next picture ID: %v", err)
 	}
-	
+
 	return nextID, nil
 }
 
 // GetUserByID retrieves a user by their ID
 func GetUserByID(db *sql.DB, userID int) (*User, error) {
 	query := `SELECT id, username, password FROM Users WHERE id = ?`
-	
+
 	var user User
 	err := db.QueryRow(query, userID).Scan(&user.ID, &user.Username, &user.Password)
 	if err != nil {
@@ -596,7 +614,7 @@ func GetUserByID(db *sql.DB, userID int) (*User, error) {
 		}
 		return nil, err
 	}
-	
+
 	// Log for debugging
 	log.Printf("Retrieved user %d with hashed password: %s", userID, user.Password)
 	return &user, nil
@@ -637,7 +655,7 @@ func UpdateUserPassword(db *sql.DB, userID int, newPassword string) error {
 func GetUserByLogin(db *sql.DB, identifier, password string) (*User, error) {
 	// First, get the user by email or username to retrieve their stored hashed password
 	query := `SELECT id, username, password FROM Users WHERE email = ? OR username = ?`
-	
+
 	var user User
 	err := db.QueryRow(query, identifier, identifier).Scan(&user.ID, &user.Username, &user.Password)
 	if err != nil {
@@ -657,4 +675,150 @@ func GetUserByLogin(db *sql.DB, identifier, password string) (*User, error) {
 	return &user, nil
 }
 
+// GetPostComments retrieves all comments for a post
+func GetPostComments(db *sql.DB, postID int) ([]Comment, error) {
+	query := `
+		SELECT c.id, c.user_id, c.content, c.timestamp,
+			   c.like_count, c.dislike_count,
+			   u.username, u.avatar
+		FROM Comments c
+		JOIN Users u ON c.user_id = u.id
+		WHERE c.post_id = ?
+		ORDER BY c.timestamp DESC`
 
+	rows, err := db.Query(query, postID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var comments []Comment
+	for rows.Next() {
+		var comment Comment
+		err := rows.Scan(
+			&comment.ID,
+			&comment.UserID,
+			&comment.Content,
+			&comment.CreatedAt,
+			&comment.LikesCount,
+			&comment.DislikesCount,
+			&comment.Username,
+			&comment.Avatar,
+		)
+		if err != nil {
+			return nil, err
+		}
+		comments = append(comments, comment)
+	}
+
+	return comments, nil
+}
+
+// HandleReaction handles likes/dislikes for posts and comments
+func HandleReaction(db *sql.DB, targetID int, userID int, reactionType string, isComment bool) error {
+	// Start transaction
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	targetTable := "Posts"
+	if isComment {
+		targetTable = "Comments"
+	}
+
+	// Check if user already reacted
+	var existingType string
+	err = tx.QueryRow(`
+		SELECT type FROM Reactions 
+		WHERE user_id = ? AND `+targetTable[0:len(targetTable)-1]+`_id = ?`,
+		userID, targetID).Scan(&existingType)
+
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+
+	if err == sql.ErrNoRows {
+		// Insert new reaction
+		_, err = tx.Exec(`
+			INSERT INTO Reactions (user_id, `+targetTable[0:len(targetTable)-1]+`_id, type)
+			VALUES (?, ?, ?)`,
+			userID, targetID, reactionType)
+	} else {
+		if existingType == reactionType {
+			// Remove reaction if same type
+			_, err = tx.Exec(`
+				DELETE FROM Reactions 
+				WHERE user_id = ? AND `+targetTable[0:len(targetTable)-1]+`_id = ?`,
+				userID, targetID)
+		} else {
+			// Update reaction type
+			_, err = tx.Exec(`
+				UPDATE Reactions 
+				SET type = ? 
+				WHERE user_id = ? AND `+targetTable[0:len(targetTable)-1]+`_id = ?`,
+				reactionType, userID, targetID)
+		}
+	}
+
+	if err != nil {
+		return err
+	}
+
+	// Update counts
+	_, err = tx.Exec(`
+		UPDATE `+targetTable+` 
+		SET like_count = (
+			SELECT COUNT(*) FROM Reactions 
+			WHERE `+targetTable[0:len(targetTable)-1]+`_id = ? AND type = 'like'
+		),
+		dislike_count = (
+			SELECT COUNT(*) FROM Reactions 
+			WHERE `+targetTable[0:len(targetTable)-1]+`_id = ? AND type = 'dislike'
+	 )
+		WHERE id = ?`,
+		targetID, targetID, targetID)
+
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// GetLastMessageTime retrieves the last message time between two users
+func GetLastMessageTime(db *sql.DB, user1ID, user2ID int) (string, error) {
+	query := `
+		SELECT created_at 
+		FROM private_messages 
+		WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
+		ORDER BY created_at DESC 
+		LIMIT 1`
+
+	var lastMessageTime time.Time
+	err := db.QueryRow(query, user1ID, user2ID, user2ID, user1ID).Scan(&lastMessageTime)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", nil
+		}
+		return "", err
+	}
+
+	// Convert time.Time to string in the desired format
+	return lastMessageTime.Format("2006-01-02 15:04:05"), nil
+}
+
+// UpdateLastMessageTime updates the last message time for a conversation
+func UpdateLastMessageTime(db *sql.DB, senderID, receiverID int) error {
+	currentTime := time.Now()
+	timeStr := currentTime.Format("2006-01-02 15:04:05")
+
+	query := `
+		UPDATE conversations 
+		SET last_message_time = ? 
+		WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)`
+
+	_, err := db.Exec(query, timeStr, senderID, receiverID, receiverID, senderID)
+	return err
+}

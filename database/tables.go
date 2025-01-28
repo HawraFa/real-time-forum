@@ -113,3 +113,4 @@ func CreateTables(db *sql.DB) error {
 	fmt.Println("Tables created successfully!")
 	return nil
 }
+
