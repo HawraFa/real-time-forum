@@ -1,16 +1,12 @@
 package database
-
 import (
 	"database/sql" // Provides database-related functions (Open, Query, etc.)
 	"fmt"          // For formatting strings
 	"log"          // For logging errors and important information
-
-	"time"         // For time-related functions
+	//"time"         // For time-related functions
 	"strings" // For string manipulation
-
 	_ "github.com/mattn/go-sqlite3" // Blank import for SQLite3 driver, needed to interact with SQLite databases
 )
-
 // queryUsers retrieves all users from the Users table and prints their id, username, and email
 func QueryUsers(db *sql.DB) ([]User, error) {
 	rows, err := db.Query("SELECT id, username, email, avatar, gender, age FROM Users;")
@@ -34,7 +30,6 @@ func QueryUsers(db *sql.DB) ([]User, error) {
 	}
 	return users, nil
 }
-
 // QueryCategories retrieves all categories from the Categories table
 func QueryCategories(db *sql.DB) ([]Category, error) {
 	query := "SELECT id, name FROM Categories ORDER BY name ASC"
@@ -43,7 +38,6 @@ func QueryCategories(db *sql.DB) ([]Category, error) {
 		return nil, fmt.Errorf("error querying categories: %v", err)
 	}
 	defer rows.Close()
-
 	var categories []Category
 	for rows.Next() {
 		var category Category
@@ -52,21 +46,17 @@ func QueryCategories(db *sql.DB) ([]Category, error) {
 		}
 		categories = append(categories, category)
 	}
-
 	// Initialize empty array if no categories found
 	if categories == nil {
 		categories = []Category{}
 	}
-
 	return categories, nil
 }
-
 // QueryPosts retrieves all posts with user information
 func QueryPosts(db *sql.DB, userID *int) ([]Post, error) {
 	var query string
 	var rows *sql.Rows
 	var err error
-
 	if userID != nil {
 		query = `
 			SELECT p.id, p.user_id, p.category_id, p.title, p.content, p.image,
@@ -87,12 +77,10 @@ func QueryPosts(db *sql.DB, userID *int) ([]Post, error) {
 			ORDER BY p.timestamp DESC`
 		rows, err = db.Query(query)
 	}
-
 	if err != nil {
 		return nil, fmt.Errorf("error querying posts: %v", err)
 	}
 	defer rows.Close()
-
 	var posts []Post
 	for rows.Next() {
 		var post Post
@@ -115,14 +103,11 @@ func QueryPosts(db *sql.DB, userID *int) ([]Post, error) {
 		}
 		posts = append(posts, post)
 	}
-
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating posts: %v", err)
 	}
-
 	return posts, nil
 }
-
 // QueryComments retrieves comments from the Comments table, optionally filtered by post ID
 func QueryComments(db *sql.DB, postID *int) ([]Comment, error) {
 	var rows *sql.Rows
@@ -152,7 +137,6 @@ func QueryComments(db *sql.DB, postID *int) ([]Comment, error) {
 	}
 	return comments, nil
 }
-
 // queryReactions retrieves all reactions from the Reactions table and prints their details
 func QueryReactions(db *sql.DB) ([]Reaction, error) {
 	rows, err := db.Query("SELECT id, user_id, post_id, comment_id, type, timestamp FROM Reactions;")
@@ -171,7 +155,6 @@ func QueryReactions(db *sql.DB) ([]Reaction, error) {
 	}
 	return reactions, nil
 }
-
 // QueryPostCategories retrieves all categories for a specific post
 func QueryPostCategories(db *sql.DB, postID int) ([]int, error) {
 	querySQL := `SELECT category_id FROM post_categories WHERE post_id = ?;`
@@ -192,7 +175,6 @@ func QueryPostCategories(db *sql.DB, postID int) ([]int, error) {
 	}
 	return categories, nil
 }
-
 // QueryPostsByCategory retrieves post IDs for a specific category from the database
 func QueryPostsByCategory(db *sql.DB, categoryID int) ([]int, error) {
 	querySQL := `SELECT post_id FROM post_categories WHERE category_id = ?;`
@@ -211,7 +193,6 @@ func QueryPostsByCategory(db *sql.DB, categoryID int) ([]int, error) {
 	}
 	return postIDs, nil
 }
-
 // QueryPostDetails retrieves a single post by its ID along with counts of likes, dislikes, comments,
 // and the username and avatar of the user who created the post.
 func QueryPostDetails(db *sql.DB, postID int) (Post, error) {
@@ -221,20 +202,16 @@ func QueryPostDetails(db *sql.DB, postID int) (Post, error) {
 					FROM Posts p
 					JOIN Users u ON p.user_id = u.id
 					WHERE p.id = ?;`
-
 	// Execute the query
 	row := db.QueryRow(querySQL, postID)
-
 	// Scan the results into the post struct
 	if err := row.Scan(&post.ID, &post.UserID, &post.Title, &post.Content, &post.CreatedAt, &post.LikesCount, &post.DislikesCount, &post.CommentsCount, &post.Username, &post.Avatar); err != nil {
 		log.Printf("Failed to retrieve post details: %v", err)
 		return Post{}, err
 	}
-
 	// Return the post with all the necessary details
 	return post, nil
 }
-
 // GetPrivateMessages retrieves messages between two users with pagination
 func GetPrivateMessages(db *sql.DB, user1ID, user2ID, limit, offset int) ([]PrivateMessage, error) {
 	query := `
@@ -246,14 +223,12 @@ func GetPrivateMessages(db *sql.DB, user1ID, user2ID, limit, offset int) ([]Priv
 		   OR (m.sender_id = ? AND m.receiver_id = ?)
 		ORDER BY m.created_at DESC
 		LIMIT ? OFFSET ?`
-
 	rows, err := db.Query(query, user1ID, user2ID, user2ID, user1ID, limit, offset)
 	if err != nil {
 		log.Printf("Failed to query private messages: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
-
 	var messages []PrivateMessage
 	for rows.Next() {
 		var msg PrivateMessage
@@ -269,14 +244,12 @@ func GetPrivateMessages(db *sql.DB, user1ID, user2ID, limit, offset int) ([]Priv
 	}
 	return messages, nil
 }
-
 // GetUnreadMessageCount gets the count of unread messages for a user
 func GetUnreadMessageCount(db *sql.DB, userID int) (int, error) {
 	query := `
 		SELECT COUNT(*) 
 		FROM private_messages 
 		WHERE receiver_id = ? AND is_read = false`
-
 	var count int
 	err := db.QueryRow(query, userID).Scan(&count)
 	if err != nil {
@@ -285,7 +258,6 @@ func GetUnreadMessageCount(db *sql.DB, userID int) (int, error) {
 	}
 	return count, nil
 }
-
 // GetChatUsers retrieves all users with whom the current user has exchanged messages
 // Ordered by the most recent message
 func GetChatUsers(db *sql.DB, currentUserID int) ([]User, error) {
@@ -302,14 +274,12 @@ func GetChatUsers(db *sql.DB, currentUserID int) ([]User, error) {
 		WHERE (m.sender_id = ? OR m.receiver_id = ?) 
 			AND u.id != ?
 		ORDER BY last_message_time DESC`
-
 	rows, err := db.Query(query, currentUserID, currentUserID, currentUserID, currentUserID, currentUserID)
 	if err != nil {
 		log.Printf("Failed to query chat users: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
-
 	var users []User
 	for rows.Next() {
 		var user User
@@ -319,15 +289,12 @@ func GetChatUsers(db *sql.DB, currentUserID int) ([]User, error) {
 			return nil, err
 		}
 		if lastMessageTime.Valid {
-			user.LastSeen = lastMessageTime.Time.Format("2006-01-02 15:04:05")
-		} else {
-			user.LastSeen = "" // or some default value like "Never"
+			user.LastSeen = lastMessageTime.Time
 		}
 		users = append(users, user)
 	}
 	return users, nil
 }
-
 // GetOnlineUsers retrieves all currently online users
 func GetOnlineUsers(db *sql.DB) ([]User, error) {
 	query := `
@@ -336,14 +303,12 @@ func GetOnlineUsers(db *sql.DB) ([]User, error) {
 		FROM Users 
 		WHERE is_online = true 
 		ORDER BY username`
-
 	rows, err := db.Query(query)
 	if err != nil {
 		log.Printf("Failed to query online users: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
-
 	var users []User
 	for rows.Next() {
 		var user User
@@ -358,29 +323,24 @@ func GetOnlineUsers(db *sql.DB) ([]User, error) {
 	}
 	return users, nil
 }
-
 // MarkMessagesAsRead marks all messages from a specific sender to a receiver as read
 func MarkMessagesAsRead(db *sql.DB, senderID, receiverID int) error {
 	query := `
 		UPDATE private_messages 
 		SET is_read = true 
 		WHERE sender_id = ? AND receiver_id = ? AND is_read = false`
-
 	result, err := db.Exec(query, senderID, receiverID)
 	if err != nil {
 		log.Printf("Failed to mark messages as read: %v", err)
 		return err
 	}
-
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
-
 	log.Printf("Marked %d messages as read", rowsAffected)
 	return nil
 }
-
 // GetPostCountByCategory returns the number of posts in a specific category
 func GetPostCountByCategory(db *sql.DB, categoryID int) (int, error) {
 	query := `
@@ -388,7 +348,6 @@ func GetPostCountByCategory(db *sql.DB, categoryID int) (int, error) {
 		FROM Posts p
 		JOIN post_categories pc ON p.id = pc.post_id
 		WHERE pc.category_id = ?`
-
 	var count int
 	err := db.QueryRow(query, categoryID).Scan(&count)
 	if err != nil {
@@ -397,7 +356,6 @@ func GetPostCountByCategory(db *sql.DB, categoryID int) (int, error) {
 	}
 	return count, nil
 }
-
 // GetPostsByCategory retrieves all posts for a specific category
 func GetPostsByCategory(db *sql.DB, categoryID int) ([]Post, error) {
 	query := `
@@ -409,14 +367,12 @@ func GetPostsByCategory(db *sql.DB, categoryID int) ([]Post, error) {
 		JOIN Users u ON p.user_id = u.id
 		WHERE pc.category_id = ?
 		ORDER BY p.timestamp DESC`
-
 	rows, err := db.Query(query, categoryID)
 	if err != nil {
 		log.Printf("Error getting posts for category %d: %v", categoryID, err)
 		return nil, err
 	}
 	defer rows.Close()
-
 	var posts []Post
 	for rows.Next() {
 		var post Post
@@ -430,18 +386,14 @@ func GetPostsByCategory(db *sql.DB, categoryID int) ([]Post, error) {
 		}
 		posts = append(posts, post)
 	}
-
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
-
 	return posts, nil
 }
-
 // GetCategoryName retrieves the name of a category by its ID
 func GetCategoryName(db *sql.DB, categoryID int) (string, error) {
 	query := `SELECT name FROM Categories WHERE id = ?`
-
 	var name string
 	err := db.QueryRow(query, categoryID).Scan(&name)
 	if err != nil {
@@ -453,57 +405,36 @@ func GetCategoryName(db *sql.DB, categoryID int) (string, error) {
 	}
 	return name, nil
 }
-
-// GetUserProfile retrieves a user's profile information
-func GetUserProfile(db *sql.DB, userID int) (*User, error) {
+func GetUserProfile(db *sql.DB, userID int) (*UserProfile, error) {
 	query := `
-		SELECT u.id, u.username, u.email, u.avatar, u.gender, u.age,
-			   u.first_name, u.last_name, u.created_at, u.is_online, u.last_seen,
-			   (SELECT COUNT(*) FROM Posts WHERE user_id = ?) as post_count
+		SELECT u.id, u.username, u.email, u.first_name, u.last_name, 
+			   u.age, u.gender, u.avatar, u.is_online, u.last_seen, u.created_at,
+			   (SELECT COUNT(*) FROM Posts WHERE user_id = u.id) as post_count
 		FROM Users u
 		WHERE u.id = ?`
-
-	var (
-		user User
-		createdAt time.Time
-		lastSeen sql.NullTime
-		isOnline bool
+	var profile UserProfile
+	err := db.QueryRow(query, userID).Scan(
+		&profile.ID,
+		&profile.Username,
+		&profile.Email,
+		&profile.FirstName,
+		&profile.LastName,
+		&profile.Age,
+		&profile.Gender,
+		&profile.Avatar,
+		&profile.IsOnline,
+		&profile.LastSeen,
+		&profile.JoinDate,
+		&profile.PostCount,
 	)
-
-	err := db.QueryRow(query, userID, userID).Scan(
-		&user.ID,
-		&user.Username,
-		&user.Email,
-		&user.Avatar,
-		&user.Gender,
-		&user.Age,
-		&user.FirstName,
-		&user.LastName,
-		&createdAt,
-		&isOnline,
-		&lastSeen,
-		&user.PostCount,
-	)
-
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("user not found")
 		}
-		return nil, fmt.Errorf("error querying user profile: %v", err)
+		return nil, fmt.Errorf("database error: %v", err)
 	}
-
-	// Convert time.Time values to formatted strings
-	user.JoinDate = createdAt.Format("2006-01-02 15:04:05")
-	if lastSeen.Valid {
-		user.LastSeen = lastSeen.Time.Format("2006-01-02 15:04:05")
-	} else {
-		user.LastSeen = "" // or some default value like "Never"
-	}
-	user.IsOnline = fmt.Sprintf("%v", isOnline) // Convert bool to string
-
-	return &user, nil
+	return &profile, nil
 }
-
 func UpdateUserOnlineStatus(db *sql.DB, userID int, isOnline bool) error {
 	// First check if user exists
 	var exists bool
@@ -514,38 +445,33 @@ func UpdateUserOnlineStatus(db *sql.DB, userID int, isOnline bool) error {
 	if !exists {
 		return fmt.Errorf("user not found")
 	}
-
 	query := `
 		UPDATE Users 
 		SET is_online = ?,
 				last_seen = CURRENT_TIMESTAMP
 		WHERE id = ?
 	`
-
+	
 	_, err = db.Exec(query, isOnline, userID)
 	if err != nil {
 		return fmt.Errorf("failed to update online status: %v", err)
 	}
-
 	return nil
 }
-
 // UpdateUserProfile updates a user's profile information
 func UpdateUserProfile(db *sql.DB, userID int, updates map[string]interface{}) error {
 	// Start building the query
 	var setFields []string
 	var values []interface{}
-
 	// Map JSON fields to database columns
 	fieldMapping := map[string]string{
 		"username":  "username",
-		"email":     "email",
+		"email":    "email",
 		"firstName": "first_name",
 		"lastName":  "last_name",
-		"age":       "age",
-		"avatar":    "avatar",
+		"age":      "age",
+		"avatar":   "avatar",
 	}
-
 	// Build the SET clause based on provided updates
 	for jsonField, value := range updates {
 		if dbField, ok := fieldMapping[jsonField]; ok {
@@ -554,36 +480,28 @@ func UpdateUserProfile(db *sql.DB, userID int, updates map[string]interface{}) e
 			log.Printf("Updating field %s to %v", dbField, value) // Debug log
 		}
 	}
-
 	if len(setFields) == 0 {
 		return fmt.Errorf("no valid fields to update")
 	}
-
 	// Build the complete query
 	query := fmt.Sprintf("UPDATE Users SET %s WHERE id = ?", strings.Join(setFields, ", "))
 	values = append(values, userID)
-
-	log.Printf("Update query: %s", query)   // Debug log
+	log.Printf("Update query: %s", query) // Debug log
 	log.Printf("Update values: %v", values) // Debug log
-
 	// Execute the update
 	result, err := db.Exec(query, values...)
 	if err != nil {
 		return fmt.Errorf("database error: %v", err)
 	}
-
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("error checking affected rows: %v", err)
 	}
-
 	if rowsAffected == 0 {
 		return fmt.Errorf("user not found")
 	}
-
 	return nil
 }
-
 // GetNextPictureID gets the next available picture ID
 func GetNextPictureID(db *sql.DB) (int, error) {
 	query := `
@@ -592,20 +510,19 @@ func GetNextPictureID(db *sql.DB) (int, error) {
 		FROM Users 
 		WHERE avatar LIKE 'pictures/picture_%'
 	`
-
+	
 	var nextID int
 	err := db.QueryRow(query).Scan(&nextID)
 	if err != nil {
 		return 0, fmt.Errorf("error getting next picture ID: %v", err)
 	}
-
+	
 	return nextID, nil
 }
-
 // GetUserByID retrieves a user by their ID
 func GetUserByID(db *sql.DB, userID int) (*User, error) {
 	query := `SELECT id, username, password FROM Users WHERE id = ?`
-
+	
 	var user User
 	err := db.QueryRow(query, userID).Scan(&user.ID, &user.Username, &user.Password)
 	if err != nil {
@@ -614,12 +531,11 @@ func GetUserByID(db *sql.DB, userID int) (*User, error) {
 		}
 		return nil, err
 	}
-
+	
 	// Log for debugging
 	log.Printf("Retrieved user %d with hashed password: %s", userID, user.Password)
 	return &user, nil
 }
-
 // UpdateUserPassword updates a user's password
 func UpdateUserPassword(db *sql.DB, userID int, newPassword string) error {
 	// Hash the new password
@@ -627,35 +543,29 @@ func UpdateUserPassword(db *sql.DB, userID int, newPassword string) error {
 	if err != nil {
 		return fmt.Errorf("error hashing password: %v", err)
 	}
-
 	// Log for debugging
 	log.Printf("Updating password for user %d. Hashed password: %s", userID, hashedPassword)
-
 	// Update the password in the database
 	query := `UPDATE Users SET password = ? WHERE id = ?`
 	result, err := db.Exec(query, hashedPassword, userID)
 	if err != nil {
 		return fmt.Errorf("error updating password: %v", err)
 	}
-
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("error checking affected rows: %v", err)
 	}
-
 	if rowsAffected == 0 {
 		return fmt.Errorf("user not found")
 	}
-
 	log.Printf("Successfully updated password for user %d", userID)
 	return nil
 }
-
 // GetUserByLogin retrieves a user by email/username and password
 func GetUserByLogin(db *sql.DB, identifier, password string) (*User, error) {
 	// First, get the user by email or username to retrieve their stored hashed password
 	query := `SELECT id, username, password FROM Users WHERE email = ? OR username = ?`
-
+	
 	var user User
 	err := db.QueryRow(query, identifier, identifier).Scan(&user.ID, &user.Username, &user.Password)
 	if err != nil {
@@ -664,161 +574,11 @@ func GetUserByLogin(db *sql.DB, identifier, password string) (*User, error) {
 		}
 		return nil, err
 	}
-
 	// Now check if the provided password matches the stored hash
 	if !CheckPassword(user.Password, password) {
 		log.Printf("Password mismatch for user %s", user.Username)
 		return nil, fmt.Errorf("invalid credentials")
 	}
-
 	log.Printf("Successful login for user %s", user.Username)
 	return &user, nil
-}
-
-// GetPostComments retrieves all comments for a post
-func GetPostComments(db *sql.DB, postID int) ([]Comment, error) {
-	query := `
-		SELECT c.id, c.user_id, c.content, c.timestamp,
-			   c.like_count, c.dislike_count,
-			   u.username, u.avatar
-		FROM Comments c
-		JOIN Users u ON c.user_id = u.id
-		WHERE c.post_id = ?
-		ORDER BY c.timestamp DESC`
-
-	rows, err := db.Query(query, postID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var comments []Comment
-	for rows.Next() {
-		var comment Comment
-		err := rows.Scan(
-			&comment.ID,
-			&comment.UserID,
-			&comment.Content,
-			&comment.CreatedAt,
-			&comment.LikesCount,
-			&comment.DislikesCount,
-			&comment.Username,
-			&comment.Avatar,
-		)
-		if err != nil {
-			return nil, err
-		}
-		comments = append(comments, comment)
-	}
-
-	return comments, nil
-}
-
-// HandleReaction handles likes/dislikes for posts and comments
-func HandleReaction(db *sql.DB, targetID int, userID int, reactionType string, isComment bool) error {
-	// Start transaction
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	targetTable := "Posts"
-	if isComment {
-		targetTable = "Comments"
-	}
-
-	// Check if user already reacted
-	var existingType string
-	err = tx.QueryRow(`
-		SELECT type FROM Reactions 
-		WHERE user_id = ? AND `+targetTable[0:len(targetTable)-1]+`_id = ?`,
-		userID, targetID).Scan(&existingType)
-
-	if err != nil && err != sql.ErrNoRows {
-		return err
-	}
-
-	if err == sql.ErrNoRows {
-		// Insert new reaction
-		_, err = tx.Exec(`
-			INSERT INTO Reactions (user_id, `+targetTable[0:len(targetTable)-1]+`_id, type)
-			VALUES (?, ?, ?)`,
-			userID, targetID, reactionType)
-	} else {
-		if existingType == reactionType {
-			// Remove reaction if same type
-			_, err = tx.Exec(`
-				DELETE FROM Reactions 
-				WHERE user_id = ? AND `+targetTable[0:len(targetTable)-1]+`_id = ?`,
-				userID, targetID)
-		} else {
-			// Update reaction type
-			_, err = tx.Exec(`
-				UPDATE Reactions 
-				SET type = ? 
-				WHERE user_id = ? AND `+targetTable[0:len(targetTable)-1]+`_id = ?`,
-				reactionType, userID, targetID)
-		}
-	}
-
-	if err != nil {
-		return err
-	}
-
-	// Update counts
-	_, err = tx.Exec(`
-		UPDATE `+targetTable+` 
-		SET like_count = (
-			SELECT COUNT(*) FROM Reactions 
-			WHERE `+targetTable[0:len(targetTable)-1]+`_id = ? AND type = 'like'
-		),
-		dislike_count = (
-			SELECT COUNT(*) FROM Reactions 
-			WHERE `+targetTable[0:len(targetTable)-1]+`_id = ? AND type = 'dislike'
-	 )
-		WHERE id = ?`,
-		targetID, targetID, targetID)
-
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit()
-}
-
-// GetLastMessageTime retrieves the last message time between two users
-func GetLastMessageTime(db *sql.DB, user1ID, user2ID int) (string, error) {
-	query := `
-		SELECT created_at 
-		FROM private_messages 
-		WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
-		ORDER BY created_at DESC 
-		LIMIT 1`
-
-	var lastMessageTime time.Time
-	err := db.QueryRow(query, user1ID, user2ID, user2ID, user1ID).Scan(&lastMessageTime)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return "", nil
-		}
-		return "", err
-	}
-
-	// Convert time.Time to string in the desired format
-	return lastMessageTime.Format("2006-01-02 15:04:05"), nil
-}
-
-// UpdateLastMessageTime updates the last message time for a conversation
-func UpdateLastMessageTime(db *sql.DB, senderID, receiverID int) error {
-	currentTime := time.Now()
-	timeStr := currentTime.Format("2006-01-02 15:04:05")
-
-	query := `
-		UPDATE conversations 
-		SET last_message_time = ? 
-		WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)`
-
-	_, err := db.Exec(query, timeStr, senderID, receiverID, receiverID, senderID)
-	return err
 }

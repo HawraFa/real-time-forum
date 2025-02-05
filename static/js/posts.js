@@ -1,14 +1,25 @@
-// Make functions globally available
-window.loadCategories = loadCategories;
-window.loadPosts = loadPosts;
-window.showPosts = showPosts;
-window.showNewPostForm = showNewPostForm;
-window.filterPostsByCategory = filterPostsByCategory;
-window.showPostDetail = showPostDetail;
-window.handleNewPost = handleNewPost;
-window.handleNewComment = handleNewComment;
-window.previewImage = previewImage;
-window.handleReaction = handleReaction;
+// Function to show all posts
+function showPosts() {
+    const app = document.getElementById('app');
+    app.innerHTML = `
+        ${createNavbar(JSON.parse(localStorage.getItem('currentUser')))}
+        <div class="container">
+            <div class="posts-header">
+                <h2>Forum Posts</h2>
+                <button onclick="showNewPostForm()" class="new-post-button">New Post</button>
+            </div>
+            <div class="categories-filter">
+                <!-- Categories will be loaded here -->
+            </div>
+            <div id="posts-container">
+                <!-- Posts will be loaded here -->
+            </div>
+        </div>
+    `;
+
+    loadCategories();
+    loadPosts();
+}
 
 // Load all categories
 async function loadCategories() {
@@ -29,9 +40,10 @@ async function loadCategories() {
             categoriesFilter.innerHTML = `
                 <select id="category-select" onchange="filterPostsByCategory(this.value)">
                     <option value="">All Categories</option>
-                    ${categories.map(category => 
-                        `<option value="${category.id}">${category.name}</option>`
-                    ).join('')}
+                    ${categories.map(category => {
+                        console.log('Processing category:', category);
+                        return `<option value="${category.id}">${category.name}</option>`;
+                    }).join('')}
                 </select>
             `;
         }
@@ -55,34 +67,6 @@ async function loadCategories() {
     }
 }
 
-// Show all posts (main posts view)
-function showPosts() {
-    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    const app = document.getElementById('app');
-    app.innerHTML = `
-        ${createNavbar(currentUser)}
-        <div class="container">
-            <div class="posts-header">
-                <h2>Recent Posts</h2>
-                <div class="posts-controls">
-                    <div class="categories-filter">
-                        <!-- Categories will be loaded here -->
-                    </div>
-                    <button onclick="showNewPostForm()" class="new-post-button">
-                        <i class="fas fa-plus"></i> New Post
-                    </button>
-                </div>
-            </div>
-            <div id="posts-container" class="posts-grid">
-                <!-- Posts will be loaded here -->
-            </div>
-        </div>
-    `;
-
-    loadCategories();
-    loadPosts();
-}
-
 // Load all posts or posts by category
 async function loadPosts(categoryId = null) {
     try {
@@ -90,21 +74,15 @@ async function loadPosts(categoryId = null) {
             ? `http://localhost:8080/api/posts/category/${categoryId}`
             : 'http://localhost:8080/api/posts';
             
-        console.log('Fetching posts from:', url);
         const response = await fetch(url);
-        console.log('Posts response status:', response.status);
-
         if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Server error:', errorData);
-            throw new Error(errorData.message || 'Failed to load posts');
+            throw new Error('Failed to load posts');
         }
 
         const posts = await response.json();
-        console.log('Received posts:', posts);
         
         const postsContainer = document.getElementById('posts-container');
-        if (!posts || posts.length === 0) {
+        if (!Array.isArray(posts) || posts.length === 0) {
             postsContainer.innerHTML = '<p class="no-posts">No posts found</p>';
             return;
         }
@@ -112,25 +90,23 @@ async function loadPosts(categoryId = null) {
         postsContainer.innerHTML = posts.map(post => `
             <div class="post-card" onclick="showPostDetail(${post.id})">
                 <h3>${post.title}</h3>
-                ${post.image ? `<img src="${post.image}" alt="Post image" class="post-image">` : ''}
-                ${post.content ? `<p class="post-preview">${post.content.substring(0, 150)}...</p>` : ''}
+                <p class="post-preview">${post.content.substring(0, 150)}...</p>
                 <div class="post-meta">
                     <span>By ${post.username}</span>
                     <span>${new Date(post.createdAt).toLocaleDateString()}</span>
                 </div>
                 <div class="post-stats">
-                    <span>👍 ${post.likesCount || 0}</span>
-                    <span>👎 ${post.dislikesCount || 0}</span>
-                    <span>💬 ${post.commentsCount || 0}</span>
+                    <span>👍 ${post.likesCount}</span>
+                    <span>👎 ${post.dislikesCount}</span>
+                    <span>💬 ${post.commentsCount}</span>
                 </div>
             </div>
         `).join('');
     } catch (error) {
         console.error('Error loading posts:', error);
-        const postsContainer = document.getElementById('posts-container');
-        if (postsContainer) {
-            postsContainer.innerHTML = `<div class="error">Error loading posts: ${error.message}</div>`;
-        }
+        document.getElementById('posts-container').innerHTML = `
+            <div class="error">Error loading posts: ${error.message}</div>
+        `;
     }
 }
 
@@ -141,18 +117,11 @@ function filterPostsByCategory(categoryId) {
 
 // Show new post form
 function showNewPostForm() {
-    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    if (!currentUser) {
-        showLoginPage();
-        return;
-    }
-
     const app = document.getElementById('app');
     app.innerHTML = `
-        ${createNavbar(currentUser)}
+        ${createNavbar(JSON.parse(localStorage.getItem('currentUser')))}
         <div class="container">
             <h2>Create New Post</h2>
-            <div id="error-container" class="error hidden"></div>
             <form id="newPostForm" onsubmit="handleNewPost(event)">
                 <div class="form-group">
                     <label for="title">Title</label>
@@ -161,7 +130,7 @@ function showNewPostForm() {
                 <div class="form-group">
                     <label for="category">Category</label>
                     <select id="category" required>
-                        <option value="">Select Category</option>
+                        <!-- Categories will be loaded here -->
                     </select>
                 </div>
                 <div class="form-group">
@@ -170,8 +139,8 @@ function showNewPostForm() {
                 </div>
                 <div class="form-group">
                     <label for="postImage">Image (optional)</label>
-                    <input type="file" id="postImage" accept="image/*" onchange="previewImage(event)">
-                    <div id="imagePreview" class="image-preview"></div>
+                    <input type="file" id="postImage" accept="image/*">
+                    <div class="image-preview" id="imagePreview"></div>
                 </div>
                 <div class="form-actions">
                     <button type="submit">Create Post</button>
@@ -180,19 +149,77 @@ function showNewPostForm() {
             </form>
         </div>
     `;
-
-    // Load categories for the select input
-    loadCategoriesForSelect();
+    
+    // Add image preview functionality
+    const imageInput = document.getElementById('postImage');
+    const imagePreview = document.getElementById('imagePreview');
+    imageInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imagePreview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    loadCategories();
 }
 
-// Show post detail with comments and reactions
-async function showPostDetail(postId) {
+// Handle new post creation
+async function handleNewPost(event) {
+    event.preventDefault();
+    
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (!currentUser) {
+        showError('You must be logged in to create a post');
+        return;
+    }
+
+    // Create post data object
+    const postData = {
+        userId: currentUser.id,
+        categoryId: parseInt(document.getElementById('category').value),
+        title: document.getElementById('title').value,
+        content: document.getElementById('content').value
+    };
+
+    console.log('Post data:', postData);
+
+    try {
+        const response = await fetch('http://localhost:8080/api/posts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(postData)
+        });
+
+        console.log('Response status:', response.status);
+        const data = await response.json();
+        console.log('Response data:', data);
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to create post');
+        }
+
+        showPosts();
+    } catch (error) {
+        console.error('Error creating post:', error);
+        showError(error.message);
+    }
+}
+
+// Add click handler to post cards
+function showPostDetail(postId) {
     const app = document.getElementById('app');
     app.innerHTML = `
-        ${createNavbar(currentUser)}
+        ${createNavbar(JSON.parse(localStorage.getItem('currentUser')))}
         <div class="container">
-            <div id="post-detail">Loading post...</div>
+            <button onclick="showPosts()" class="back-button">← Back to Posts</button>
+            <div id="post-detail">Loading...</div>
             <div class="comments-section">
                 <h3>Comments</h3>
                 <form id="comment-form" onsubmit="handleNewComment(event, ${postId})">
@@ -201,43 +228,48 @@ async function showPostDetail(postId) {
                     </div>
                     <button type="submit">Post Comment</button>
                 </form>
-                <div id="comments-container">Loading comments...</div>
+                <div id="comments-container">
+                    <!-- Comments will be loaded here -->
+                </div>
             </div>
         </div>
     `;
 
+    loadPostDetail(postId);
+    loadComments(postId);
+}
+
+// Load post detail
+async function loadPostDetail(postId) {
     try {
         const response = await fetch(`http://localhost:8080/api/posts/${postId}`);
+        const post = await response.json();
+
         if (!response.ok) {
-            throw new Error('Failed to load post');
+            throw new Error(post.message || 'Failed to load post');
         }
 
-        const post = await response.json();
-        
         document.getElementById('post-detail').innerHTML = `
-            <div class="post-full">
+            <div class="post-detail">
                 <h2>${post.title}</h2>
-                ${post.image ? `<img src="${post.image}" alt="Post image" class="post-image">` : ''}
-                <p class="post-content">${post.content}</p>
                 <div class="post-meta">
                     <span>By ${post.username}</span>
                     <span>${new Date(post.createdAt).toLocaleDateString()}</span>
                 </div>
-                <div class="post-reactions">
-                    <button onclick="handleReaction(${post.id}, 'like')" class="reaction-btn ${post.userReaction === 'like' ? 'active' : ''}">
-                        👍 <span>${post.likesCount || 0}</span>
+                <div class="post-content">${post.content}</div>
+                <div class="post-stats">
+                    <button onclick="handleReaction(${post.id}, 'like')" class="reaction-btn">
+                        👍 ${post.likesCount}
                     </button>
-                    <button onclick="handleReaction(${post.id}, 'dislike')" class="reaction-btn ${post.userReaction === 'dislike' ? 'active' : ''}">
-                        👎 <span>${post.dislikesCount || 0}</span>
+                    <button onclick="handleReaction(${post.id}, 'dislike')" class="reaction-btn">
+                        👎 ${post.dislikesCount}
                     </button>
+                    <span>💬 ${post.commentsCount}</span>
                 </div>
             </div>
         `;
-
-        // Load comments
-        loadComments(postId);
     } catch (error) {
-        console.error('Error loading post:', error);
+        console.error('Error loading post detail:', error);
         document.getElementById('post-detail').innerHTML = `
             <div class="error">Error loading post: ${error.message}</div>
         `;
@@ -248,225 +280,71 @@ async function showPostDetail(postId) {
 async function loadComments(postId) {
     try {
         const response = await fetch(`http://localhost:8080/api/posts/${postId}/comments`);
-        if (!response.ok) {
-            throw new Error('Failed to load comments');
-        }
-
         const comments = await response.json();
-        const container = document.getElementById('comments-container');
-        
-        if (!comments || comments.length === 0) {
-            container.innerHTML = '<p class="no-comments">No comments yet</p>';
+
+        const commentsContainer = document.getElementById('comments-container');
+        if (comments.length === 0) {
+            commentsContainer.innerHTML = '<p class="no-comments">No comments yet</p>';
             return;
         }
 
-        container.innerHTML = comments.map(comment => `
+        commentsContainer.innerHTML = comments.map(comment => `
             <div class="comment">
-                <div class="comment-header">
-                    <span class="comment-author">${comment.username}</span>
-                    <span class="comment-date">${new Date(comment.createdAt).toLocaleDateString()}</span>
+                <div class="comment-meta">
+                    <span>${comment.username}</span>
+                    <span>${new Date(comment.createdAt).toLocaleDateString()}</span>
                 </div>
-                <p class="comment-content">${comment.content}</p>
-                <div class="comment-reactions">
-                    <button onclick="handleCommentReaction(${comment.id}, 'like')" class="reaction-btn ${comment.userReaction === 'like' ? 'active' : ''}">
-                        👍 <span>${comment.likesCount || 0}</span>
+                <div class="comment-content">${comment.content}</div>
+                <div class="comment-stats">
+                    <button onclick="handleCommentReaction(${comment.id}, 'like')" class="reaction-btn">
+                        👍 ${comment.likesCount}
                     </button>
-                    <button onclick="handleCommentReaction(${comment.id}, 'dislike')" class="reaction-btn ${comment.userReaction === 'dislike' ? 'active' : ''}">
-                        👎 <span>${comment.dislikesCount || 0}</span>
+                    <button onclick="handleCommentReaction(${comment.id}, 'dislike')" class="reaction-btn">
+                        👎 ${comment.dislikesCount}
                     </button>
                 </div>
             </div>
         `).join('');
     } catch (error) {
         console.error('Error loading comments:', error);
-        document.getElementById('comments-container').innerHTML = `
-            <div class="error">Error loading comments: ${error.message}</div>
-        `;
-    }
-}
-
-// Handle new post creation
-async function handleNewPost(event) {
-    event.preventDefault();
-    hideError();
-
-    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    if (!currentUser) {
-        showError('Please login first');
-        return;
-    }
-
-    const title = document.getElementById('title').value;
-    const categoryId = document.getElementById('category').value;
-    const content = document.getElementById('content').value;
-    const imageFile = document.getElementById('postImage').files[0];
-
-    if (!title || !categoryId || !content) {
-        showError('Please fill in all required fields');
-        return;
-    }
-
-    console.log('Creating post with:', { title, categoryId, content, hasImage: !!imageFile });
-
-    const formData = new FormData();
-    formData.append('title', title);
-    formData.append('categoryId', categoryId);
-    formData.append('content', content);
-    if (imageFile) {
-        formData.append('image', imageFile);
-    }
-
-    try {
-        console.log('Sending request with user ID:', currentUser.id);
-        const response = await fetch('http://localhost:8080/api/posts', {
-            method: 'POST',
-            headers: {
-                'X-User-ID': currentUser.id.toString()
-            },
-            credentials: 'include',
-            body: formData
-        });
-
-        console.log('Response status:', response.status);
-        
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.message || 'Failed to create post');
-        }
-
-        const data = await response.json();
-        console.log('Response data:', data);
-
-        // Show success message
-        showError('Post created successfully!', 'success-container');
-        
-        // Redirect to posts page after a short delay
-        setTimeout(() => {
-            showPosts();
-        }, 1500);
-    } catch (error) {
-        console.error('Error creating post:', error);
-        showError(error.message || 'Failed to create post');
-    }
-}
-
-// Preview image before upload
-function previewImage(event) {
-    const file = event.target.files[0];
-    const preview = document.getElementById('imagePreview');
-    
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
-        }
-        reader.readAsDataURL(file);
-    } else {
-        preview.innerHTML = '';
-    }
-}
-
-// Load categories for select input
-async function loadCategoriesForSelect() {
-    try {
-        const response = await fetch('http://localhost:8080/api/categories');
-        if (!response.ok) {
-            throw new Error('Failed to load categories');
-        }
-
-        const categories = await response.json();
-        const select = document.getElementById('category');
-        
-        categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category.id;
-            option.textContent = category.name;
-            select.appendChild(option);
-        });
-    } catch (error) {
-        console.error('Error loading categories:', error);
-        showError('Failed to load categories');
     }
 }
 
 // Handle new comment submission
 async function handleNewComment(event, postId) {
     event.preventDefault();
-    hideError();
-
+    
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     if (!currentUser) {
-        showError('Please login to comment');
+        showError('You must be logged in to comment');
         return;
     }
 
     const content = document.getElementById('comment-content').value;
-    if (!content.trim()) {
-        showError('Comment cannot be empty');
-        return;
-    }
 
     try {
         const response = await fetch(`http://localhost:8080/api/posts/${postId}/comments`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-User-ID': currentUser.id.toString()
             },
-            body: JSON.stringify({ content })
+            body: JSON.stringify({
+                userId: currentUser.id,
+                content: content
+            }),
         });
 
+        const data = await response.json();
         if (!response.ok) {
-            const data = await response.json();
             throw new Error(data.message || 'Failed to post comment');
         }
 
-        // Clear comment form and reload comments
-        document.getElementById('comment-content').value = '';
+        // Clear form and reload comments
+        document.getElementById('comment-form').reset();
         loadComments(postId);
+        loadPostDetail(postId); // Reload post to update comment count
     } catch (error) {
         console.error('Error posting comment:', error);
         showError(error.message);
     }
-}
-
-// Handle post/comment reactions
-async function handleReaction(id, type, isComment = false) {
-    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    if (!currentUser) {
-        showError('Please login to react');
-        return;
-    }
-
-    try {
-        const endpoint = isComment 
-            ? `/api/comments/${id}/reactions` 
-            : `/api/posts/${id}/reactions`;
-
-        const response = await fetch(`http://localhost:8080${endpoint}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-User-ID': currentUser.id.toString()
-            },
-            body: JSON.stringify({ type })
-        });
-
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.message || 'Failed to react');
-        }
-
-        // Reload the post or comment section
-        if (isComment) {
-            loadComments(id);
-        } else {
-            showPostDetail(id);
-        }
-    } catch (error) {
-        console.error('Error handling reaction:', error);
-        showError(error.message);
-    }
-}
-
-// Add other necessary functions... 
+} 

@@ -1,14 +1,10 @@
 package database
-
 import (
 	"database/sql" // Provides database-related functions (Open, Query, etc.)
 	"fmt"          // For formatted I/O (e.g., printing messages)
-
 	//"log"          // For logging errors and important information
-
 	_ "github.com/mattn/go-sqlite3" // Blank import for SQLite3 driver, needed to interact with SQLite databases
 )
-
 //var db *sql.DB
 // createTables creates the necessary tables in the database if they don't already exist
 /* This is a function declaration. It takes a parameter db which is a pointer to the SQLite database object (*sql.DB). This allows the function to interact with the database.*/
@@ -33,7 +29,6 @@ func CreateTables(db *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("error creating Users table: %v", err)
 	}
-
 	// Create the Categories table
 	_, err = db.Exec(`
     CREATE TABLE IF NOT EXISTS Categories (
@@ -109,8 +104,6 @@ func CreateTables(db *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("error creating post_categories table: %v", err)
 	}
-
 	fmt.Println("Tables created successfully!")
 	return nil
 }
-

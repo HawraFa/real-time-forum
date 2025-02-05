@@ -1,12 +1,9 @@
 package database
-
 import (
 	"database/sql"
 	"log"
-
 	_ "github.com/mattn/go-sqlite3"
 )
-
 // // Function to check if email exists
 // func EmailExists(email string) bool {
 // 	db, err := sql.Open("sqlite3", "./real-time-forum.db")
@@ -23,7 +20,6 @@ import (
 // 	}
 // 	return exists
 // }
-
 // Function to check if email exists
 func EmailExists(db *sql.DB, email string) bool {
 	var exists bool

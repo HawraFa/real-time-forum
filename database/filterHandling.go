@@ -1,5 +1,4 @@
 package database
-
 import (
 	"database/sql"
 	"encoding/json"
@@ -9,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 )
-
 // HandleFilterPosts handles filtering posts based on query parameters
 func HandleFilterPosts(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +36,6 @@ func HandleFilterPosts(db *sql.DB) http.HandlerFunc {
 				if err != nil {
 					log.Printf("Invalid filter value")
 					//functions.ErrorHandler(w, r, http.StatusBadRequest)
-
 					return
 				}
 				filterValues = append(filterValues, value)
@@ -49,7 +46,6 @@ func HandleFilterPosts(db *sql.DB) http.HandlerFunc {
 			if err != nil {
 				log.Printf("Invalid filter value")
 				//functions.ErrorHandler(w, r, http.StatusBadRequest)
-
 				return
 			}
 			filterValues = []int{filterValue} // Wrap in a slice
@@ -60,7 +56,6 @@ func HandleFilterPosts(db *sql.DB) http.HandlerFunc {
 		if err != nil {
 			log.Printf("Failed to filter posts")
 			//functions.ErrorHandler(w, r, http.StatusInternalServerError)
-
 			return
 		}
 		// Return filtered posts as JSON
@@ -68,7 +63,6 @@ func HandleFilterPosts(db *sql.DB) http.HandlerFunc {
 		if err := json.NewEncoder(w).Encode(posts); err != nil {
 			log.Printf("Failed to encode posts")
 			//functions.ErrorHandler(w, r, http.StatusInternalServerError)
-
 		}
 	}
 }

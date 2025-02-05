@@ -1,10 +1,8 @@
 package functions
-
 import (
 	"html/template"
 	"net/http"
 )
-
 // ErrorHandler handles error messages
 func ErrorHandler(w http.ResponseWriter, r *http.Request, status int) {
 	w.WriteHeader(status)

@@ -1,11 +1,9 @@
 package fetching
-
 import (
 	"database/sql"
 	"fmt"
 	"real-time-forum/database"
 )
-
 // GetUser retrieves a user by their ID from the database.
 func GetUser(db *sql.DB, userID string) (database.User, error) {
 	var user database.User
@@ -19,7 +17,6 @@ func GetUser(db *sql.DB, userID string) (database.User, error) {
 	}
 	return user, nil
 }
-
 // GetUserID retrieves the userID based on the username from the database.
 func GetUserID(db *sql.DB, username string) (int, error) {
 	var userID int
