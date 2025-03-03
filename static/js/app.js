@@ -1,31 +1,15 @@
-// Function to show the home page
-function showHomePage() {
-    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    
-    // If no user is logged in, redirect to login page
-    if (!currentUser) {
-        showLoginPage();
-        return;
-    }
-    
-    // Show posts page as home page
-    showPosts();
-}
-    
+import { showLoginForm } from './auth.js';
+import { showHomePage } from './home.js';
 
 // Initialize the application
 function init() {
-    // Check if user is logged in
-    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    
-    // If no user is logged in, show login page
+    const currentUser = localStorage.getItem('currentUser');
     if (!currentUser) {
-        showLoginPage();
+        showLoginForm();
     } else {
-        // If user is logged in, show home page
-        showHomePage();
+        showHomePage(JSON.parse(currentUser));
     }
 }
 
-// Start the application
-init(); 
+// Call init when the page loads
+window.addEventListener('load', init); 
