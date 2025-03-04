@@ -1,11 +1,10 @@
 package database
 
 import (
-	"database/sql" // Provides database-related functions (Open, Query, etc.)
-	"fmt"          // For formatted I/O (e.g., printing messages)
-	"log"          // For logging errors and important information
-
+	"database/sql"                  // Provides database-related functions (Open, Query, etc.)
+	"fmt"                           // For formatted I/O (e.g., printing messages)
 	_ "github.com/mattn/go-sqlite3" // Blank import for SQLite3 driver, needed to interact with SQLite databases
+	"log"                           // For logging errors and important information
 )
 
 //var db *sql.DB
@@ -21,7 +20,8 @@ func CreateTables(db *sql.DB) {
         email TEXT NOT NULL UNIQUE,
         avatar TEXT,
         gender TEXT NOT NULL,  
-        age INTEGER NOT NULL   
+        age INTEGER NOT NULL,
+         is_online BOOLEAN DEFAULT FALSE   
     );`
 	// Create the Categories table
 	createCategoriesTable := `
@@ -52,7 +52,7 @@ func CreateTables(db *sql.DB) {
         user_id INTEGER NOT NULL,
         content TEXT NOT NULL,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-         like_count INTEGER DEFAULT 0,
+        like_count INTEGER DEFAULT 0,
         dislike_count INTEGER DEFAULT 0,
         FOREIGN KEY (post_id) REFERENCES Posts(id),
         FOREIGN KEY (user_id) REFERENCES Users(id)
@@ -82,9 +82,20 @@ func CreateTables(db *sql.DB) {
          PRIMARY KEY (post_id, category_id)
      ); `
 
-    
+	// Private Messages table
+	createPrivateMessagesTable := `
+    CREATE TABLE IF NOT EXISTS PrivateMessages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER NOT NULL,
+        receiver_id INTEGER NOT NULL,
+        message_text TEXT NOT NULL,
+        sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (sender_id) REFERENCES Users(id),
+        FOREIGN KEY (receiver_id) REFERENCES Users(id)
+    );`
+
 	// Execute all the CREATE TABLE commands
-	tables := []string{createUsersTable, createCategoriesTable, createPostsTable, createCommentsTable, createReactionsTable, createPostsCategoriesTable}
+	tables := []string{createUsersTable, createCategoriesTable, createPostsTable, createCommentsTable, createReactionsTable, createPostsCategoriesTable, createPrivateMessagesTable}
 	for _, table := range tables {
 		_, err := db.Exec(table)
 		if err != nil {

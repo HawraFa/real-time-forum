@@ -55,3 +55,25 @@ type Reaction struct {
 	Type      string
 	Timestamp string
 }
+
+type UserStatus struct {
+	UserID    int64     `json:"userId"`
+	IsOnline  bool      `json:"isOnline"`
+	LastSeen  string    `json:"lastSeen"`
+}
+
+type PrivateMessage struct {
+	ID         int64     `json:"id"`
+	SenderID   int64     `json:"senderId"`
+	ReceiverID int64     `json:"receiverId"`
+	Message    string    `json:"message"`
+	SentAt     string    `json:"sentAt"`
+	IsRead     bool      `json:"isRead"`
+}
+
+type ChatLastInteraction struct {
+	User1ID            int64     `json:"user1Id"`
+	User2ID            int64     `json:"user2Id"`
+	LastMessageID      int64     `json:"lastMessageId"`
+	LastInteractionTime string    `json:"lastInteractionTime"`
+}
