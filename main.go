@@ -11,13 +11,13 @@ import (
 	_ "github.com/mattn/go-sqlite3" // Import for SQLite driver
 )
 
-type RegisterRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Age      int    `json:"age"`
-	Gender   string `json:"gender"`
-}
+// type RegisterRequest struct {
+// 	Username string `json:"username"`
+// 	Email    string `json:"email"`
+// 	Password string `json:"password"`
+// 	Age      int    `json:"age"`
+// 	Gender   string `json:"gender"`
+// }
 
 type LoginRequest struct {
 	Username string `json:"username"`
@@ -79,13 +79,13 @@ func main() {
 			return
 		}
 
-		var req RegisterRequest
+		var req database.User
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 			return
 		}
 
-		err := database.RegisterUser(db, req.Username, req.Email, req.Password, req.Age, req.Gender)
+		err := database.RegisterUser(db, req.Username, req.FirstName, req.LastName, req.Email, req.Password, req.Age, req.Gender)
 		if err != nil {
 			log.Printf("Registration error: %v", err)
 			http.Error(w, `{"error": "Registration failed"}`, http.StatusInternalServerError)
@@ -125,6 +125,6 @@ func main() {
 	}))
 
 	// Start the HTTP server
-	log.Println("Server started at http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Println("Server started at http://localhost:8081")
+	log.Fatal(http.ListenAndServe(":8081", nil))
 }

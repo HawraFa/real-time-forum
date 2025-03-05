@@ -16,12 +16,14 @@ func CreateTables(db *sql.DB) {
     CREATE TABLE IF NOT EXISTS Users ( 
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL UNIQUE,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
         password TEXT NOT NULL,
         email TEXT NOT NULL UNIQUE,
         avatar TEXT,
         gender TEXT NOT NULL,  
         age INTEGER NOT NULL,
-         is_online BOOLEAN DEFAULT FALSE   
+        is_online BOOLEAN DEFAULT FALSE   
     );`
 	// Create the Categories table
 	createCategoriesTable := `

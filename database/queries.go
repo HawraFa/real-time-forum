@@ -9,7 +9,7 @@ import (
 
 // queryUsers retrieves all users from the Users table and prints their id, username, and email
 func QueryUsers(db *sql.DB) ([]User, error) {
-	rows, err := db.Query("SELECT id, username, email, avatar, gender, age FROM Users;")
+	rows, err := db.Query("SELECT id, username, first_name, last_name, email, avatar, gender, age FROM Users;")
 	if err != nil {
 		log.Printf("Failed to query Users: %v", err)
 		return nil, err
@@ -23,7 +23,7 @@ func QueryUsers(db *sql.DB) ([]User, error) {
 		var user User
 		/*rows.Scan(): This reads the data from the current row into the variables id, username, email..., It "scans" the row and assigns the column values to these variables. */
 		//Each column from the SQL query corresponds to a field in the User struct.
-		if err := rows.Scan(&user.ID, &user.Username, &user.Email, &user.Avatar, &user.Gender, &user.Age); err != nil {
+		if err := rows.Scan(&user.ID, &user.Username, &user.FirstName, &user.LastName, &user.Email, &user.Avatar, &user.Gender, &user.Age); err != nil {
 			return nil, err
 		}
 		users = append(users, user)

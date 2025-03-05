@@ -11,6 +11,7 @@ export function showLoginForm() {
                     <label for="username">Username</label>
                     <input type="text" id="username" name="username" required>
                 </div>
+
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required>
@@ -31,30 +32,42 @@ export function showRegistrationForm() {
             <h2>Register</h2>
             <div id="error" class="error" style="display: none;"></div>
             <form id="registerForm" onsubmit="handleRegistration(event)">
-                <div class="form-group">
+                 <div class="form-group">
                     <label for="username">Username</label>
                     <input type="text" id="username" name="username" required>
-                </div>
-                <div class="form-group">
+                 </div>
+
+                 <div class="form-group">
                     <label for="email">Email</label>
                     <input type="email" id="email" name="email" required>
+                 </div>
+
+                <div class="form-group">
+                    <label for="firstName">First Name</label>
+                    <input type="text" id="firstName" name="firstName" required>
                 </div>
+                <div class="form-group">
+                    <label for="lastName">Last Name</label>
+                    <input type="text" id="lastName" name="lastName" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="age">Age</label>
+                    <input type="number" id="age" name="age" required>
+                </div>
+
+                 <div class="form-group">
+                    <label for="gender">Gender</label>
+                    <select id="gender">
+                        <option value ="female"> Female </option>
+                        <option value ="male"> Male </option>
+
+                    </select>
+                </div>
+
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required>
-                </div>
-                <div class="form-group">
-                    <label for="age">Age</label>
-                    <input type="number" id="age" name="age" required min="13">
-                </div>
-                <div class="form-group">
-                    <label for="gender">Gender</label>
-                    <select id="gender" name="gender" required>
-                        <option value="">Select gender</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
-                    </select>
                 </div>
                 <button type="submit">Register</button>
             </form>
@@ -137,9 +150,68 @@ export function handleLogout() {
     showLoginForm();
 }
 
+export function showProfile() {
+    console.log("showProfile function called"); // Debug log
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    console.log("Current user data:", currentUser); // Debug log
+    
+    if (!currentUser) {
+        console.log("No user found in localStorage"); // Debug log
+        showLoginForm();
+        return;
+    }
+
+    const app = document.getElementById('app');
+    app.innerHTML = `
+        <nav class="navbar">
+            <div class="nav-left">
+                <h1>Forum</h1>
+            </div>
+            <div class="nav-right">
+                <div class="profile-menu">
+                    <img src="/static/images/profile.jpg" alt="Profile" class="profile-icon">
+                    <span>${currentUser.username}</span>
+                </div>
+            </div>
+        </nav>
+        <div class="container">
+            <h2>Profile Information</h2>
+            <div class="profile-info">
+                <div class="profile-field">
+                    <label>Username:</label>
+                    <span>${currentUser.username}</span>
+                </div>
+                <div class="profile-field">
+                    <label>Email:</label>
+                    <span>${currentUser.email || 'N/A'}</span>
+                </div>
+                <div class="profile-field">
+                    <label>First Name:</label>
+                    <span>${currentUser.firstName || 'N/A'}</span>
+                </div>
+                <div class="profile-field">
+                    <label>Last Name:</label>
+                    <span>${currentUser.lastName || 'N/A'}</span>
+                </div>
+                <div class="profile-field">
+                    <label>Age:</label>
+                    <span>${currentUser.age || 'N/A'}</span>
+                </div>
+                <div class="profile-field">
+                    <label>Gender:</label>
+                    <span>${currentUser.gender || 'N/A'}</span>
+                </div>
+            </div>
+            <button onclick="handleLogout()">Logout</button>
+            <button onclick="showHomePage(${JSON.stringify(currentUser)})">Back to Home</button>
+        </div>
+    `;
+}
+
 // Make functions globally available for onclick handlers
 window.showLoginForm = showLoginForm;
 window.showRegistrationForm = showRegistrationForm;
 window.handleLogin = handleLogin;
 window.handleRegistration = handleRegistration;
-window.handleLogout = handleLogout; 
+window.handleLogout = handleLogout;
+window.showProfile = showProfile; 

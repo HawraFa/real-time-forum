@@ -9,7 +9,7 @@ import (
 )
 
 
-func InsertUser(db *sql.DB, username, password, email, avatar, gender string, age int) error {
+func InsertUser(db *sql.DB, username, first_name, last_name, password, email, avatar, gender string, age int) error {
 	//ensure the email is not duplicated in the DB.
 	 isUnique:= EmailExists(email)
 	 
@@ -19,11 +19,11 @@ func InsertUser(db *sql.DB, username, password, email, avatar, gender string, ag
 	 }
 	 // SQL query to insert a new user with placeholders for username, password, and email
 	 /* VALUES (?, ?, ?): These placeholders (?) are used to avoid SQL injection. The actual values will be provided later. */
-	 insertUserSQL := `INSERT INTO Users (username, password, email, avatar, gender, age) VALUES (?, ?, ?, ?, ?, ?);`
+	 insertUserSQL := `INSERT INTO Users (username, first_name, last_name, password, email, avatar, gender, age) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`
 	 
 	 // Execute the SQL query and provide values for the placeholders (username, password, email).
 	 // db.Exec: This executes the INSERT SQL command. 
-	 _, err := db.Exec(insertUserSQL, username, password, email, avatar, gender, age)
+	 _, err := db.Exec(insertUserSQL, username, first_name, last_name, password, email, avatar, gender, age)
 	 if err != nil {
 			 log.Printf("Failed to insert user: %v", err)
 			 return err
@@ -36,7 +36,7 @@ func InsertUser(db *sql.DB, username, password, email, avatar, gender string, ag
 
 // insertInitialCategories adds predefined categories to the Categories table
 func InsertInitialCategories(db *sql.DB) error {
-	categories := []string{"Spells", "Potions", "History", "Magical Tools", "Mythology", "Other"}
+	categories := []string{"Technology", "Arts", "History", "Music", "Cooking", "Fashion", "Travel", "Politics", "Other"}
 	for _, category := range categories {
 		insertCategorySQL := `INSERT OR IGNORE INTO Categories (name) VALUES (?);`
 		_, err := db.Exec(insertCategorySQL, category)

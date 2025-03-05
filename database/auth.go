@@ -37,7 +37,7 @@ func ValidateUser(db *sql.DB, username, password string) (int, bool) {
 }
 
 // RegisterUser creates a new user in the database
-func RegisterUser(db *sql.DB, username, email, password string, age int, gender string) error {
+func RegisterUser(db *sql.DB, username, first_name, last_name, email, password string, age int, gender string) error {
 	// Hash the password
 	hashedPassword, err := HashPassword(password)
 	if err != nil {
@@ -46,9 +46,9 @@ func RegisterUser(db *sql.DB, username, email, password string, age int, gender 
 
 	// Insert the new user
 	_, err = db.Exec(`
-		INSERT INTO Users (username, email, password, age, gender)
-		VALUES (?, ?, ?, ?, ?)`,
-		username, email, hashedPassword, age, gender)
+		INSERT INTO Users (username, first_name, last_name, email, password, age, gender)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		username, first_name, last_name, email, hashedPassword, age, gender)
 	
 	return err
 } 
