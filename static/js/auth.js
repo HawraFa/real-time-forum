@@ -85,7 +85,7 @@ export async function handleLogin(event) {
     error.style.display = 'none';
 
     try {
-        const response = await fetch('http://localhost:8080/api/login', {
+        const response = await fetch('http://localhost:8082/api/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -97,6 +97,7 @@ export async function handleLogin(event) {
         });
 
         const data = await response.json();
+        console.log("Login response data:", data);
 
         if (!response.ok) {
             throw new Error(data.error || 'Login failed');
@@ -117,7 +118,7 @@ export async function handleRegistration(event) {
     error.style.display = 'none';
 
     try {
-        const response = await fetch('http://localhost:8080/api/register', {
+        const response = await fetch('http://localhost:8082/api/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -151,12 +152,9 @@ export function handleLogout() {
 }
 
 export function showProfile() {
-    console.log("showProfile function called"); // Debug log
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    console.log("Current user data:", currentUser); // Debug log
     
     if (!currentUser) {
-        console.log("No user found in localStorage"); // Debug log
         showLoginForm();
         return;
     }
@@ -169,7 +167,7 @@ export function showProfile() {
             </div>
             <div class="nav-right">
                 <div class="profile-menu">
-                    <img src="/static/images/profile.jpg" alt="Profile" class="profile-icon">
+                    <img src="/static/images/profile.png" alt="Profile" class="profile-icon">
                     <span>${currentUser.username}</span>
                 </div>
             </div>
@@ -186,14 +184,6 @@ export function showProfile() {
                     <span>${currentUser.email || 'N/A'}</span>
                 </div>
                 <div class="profile-field">
-                    <label>First Name:</label>
-                    <span>${currentUser.firstName || 'N/A'}</span>
-                </div>
-                <div class="profile-field">
-                    <label>Last Name:</label>
-                    <span>${currentUser.lastName || 'N/A'}</span>
-                </div>
-                <div class="profile-field">
                     <label>Age:</label>
                     <span>${currentUser.age || 'N/A'}</span>
                 </div>
@@ -202,8 +192,10 @@ export function showProfile() {
                     <span>${currentUser.gender || 'N/A'}</span>
                 </div>
             </div>
-            <button onclick="handleLogout()">Logout</button>
-            <button onclick="showHomePage(${JSON.stringify(currentUser)})">Back to Home</button>
+            <div class="profile-actions">
+                <button onclick="handleLogout()">Logout</button>
+                <button onclick="showHomePage(${JSON.stringify(currentUser)})">Back to Home</button>
+            </div>
         </div>
     `;
 }

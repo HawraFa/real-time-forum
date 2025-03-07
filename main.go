@@ -125,6 +125,6 @@ func main() {
 	}))
 
 	// Start the HTTP server
-	log.Println("Server started at http://localhost:8081")
-	log.Fatal(http.ListenAndServe(":8081", nil))
+	log.Println("Server started at http://localhost:8082")
+	log.Fatal(http.ListenAndServe(":8082", nil))
 }

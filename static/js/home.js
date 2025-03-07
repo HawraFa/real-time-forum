@@ -1,23 +1,35 @@
 export function showHomePage(user) {
     const app = document.getElementById('app');
     app.innerHTML = `
-         <nav class="navbar">
+        <nav class="navbar">
             <div class="nav-left">
                 <h1>Forum</h1>
             </div>
             <div class="nav-right">
-                <div class="profile-menu">
-                    <img src="/static/images/profile.jpg" alt="Profile" class="profile-icon">
+                <div class="profile-menu" onclick="toggleProfileMenu()">
+                    <img src="/static/images/profile.png" alt="Profile" class="profile-icon">
                     <span>${user.username}</span>
                     <div class="profile-dropdown" id="profileDropdown">
-                        <a href="#" onclick="showProfile(); return false;">My Profile</a>
-                        <a href="#" onclick="handleLogout(); return false;">Logout</a>
+                        <a href="#" onclick="showProfile()">My Profile</a>
+                        <a href="#" onclick="handleLogout()">Logout</a>
                     </div>
                 </div>
             </div>
         </nav>
         <div class="container home-container">
-            <!-- rest of your home page content -->
+            <h2>Welcome, ${user.username}!</h2>
+            <div class="welcome-message">
+                <p>Welcome to our Forum! Here you can:</p>
+                <ul>
+                    <li>Create and participate in discussions</li>
+                    <li>Share your thoughts and ideas</li>
+                    <li>Connect with other users</li>
+                </ul>
+            </div>
+            <div class="action-buttons">
+                <button onclick="showCreatePost()" class="primary-button">Create New Post</button>
+                <button onclick="showAllPosts()" class="secondary-button">View All Posts</button>
+            </div>
         </div>
     `;
 }
