@@ -8,31 +8,29 @@ import (
 	_ "github.com/mattn/go-sqlite3" // Blank import for SQLite3 driver, needed to interact with SQLite databases
 )
 
-
 func InsertUser(db *sql.DB, username, first_name, last_name, password, email, avatar, gender string, age int) error {
 	//ensure the email is not duplicated in the DB.
-	 isUnique:= EmailExists(email)
-	 
-	 if !isUnique {
-			 log.Println("Failed to insert user: email already exists")
-			 return fmt.Errorf("email already exists")
-	 }
-	 // SQL query to insert a new user with placeholders for username, password, and email
-	 /* VALUES (?, ?, ?): These placeholders (?) are used to avoid SQL injection. The actual values will be provided later. */
-	 insertUserSQL := `INSERT INTO Users (username, first_name, last_name, password, email, avatar, gender, age) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`
-	 
-	 // Execute the SQL query and provide values for the placeholders (username, password, email).
-	 // db.Exec: This executes the INSERT SQL command. 
-	 _, err := db.Exec(insertUserSQL, username, first_name, last_name, password, email, avatar, gender, age)
-	 if err != nil {
-			 log.Printf("Failed to insert user: %v", err)
-			 return err
-	 }
-	 // Print a message to indicate the user was successfully inserted
-	 fmt.Println("User inserted successfully!")
-	 return nil // Return nil if successful
- }
+	isUnique := EmailExists(email)
 
+	if !isUnique {
+		log.Println("Failed to insert user: email already exists")
+		return fmt.Errorf("email already exists")
+	}
+	// SQL query to insert a new user with placeholders for username, password, and email
+	/* VALUES (?, ?, ?): These placeholders (?) are used to avoid SQL injection. The actual values will be provided later. */
+	insertUserSQL := `INSERT INTO Users (username, first_name, last_name, password, email, avatar, gender, age) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`
+
+	// Execute the SQL query and provide values for the placeholders (username, password, email).
+	// db.Exec: This executes the INSERT SQL command.
+	_, err := db.Exec(insertUserSQL, username, first_name, last_name, password, email, avatar, gender, age)
+	if err != nil {
+		log.Printf("Failed to insert user: %v", err)
+		return err
+	}
+	// Print a message to indicate the user was successfully inserted
+	fmt.Println("User inserted successfully!")
+	return nil // Return nil if successful
+}
 
 // insertInitialCategories adds predefined categories to the Categories table
 func InsertInitialCategories(db *sql.DB) error {
@@ -76,21 +74,20 @@ func InsertComment(db *sql.DB, postID, userID int, content string) error {
 	insertCommentSQL := `INSERT INTO Comments (post_id, user_id, content) VALUES (?, ?, ?);`
 	_, err := db.Exec(insertCommentSQL, postID, userID, content)
 	if err != nil {
-			log.Printf("Failed to insert comment: %v", err)
-			return err
+		log.Printf("Failed to insert comment: %v", err)
+		return err
 	}
 
 	// Increment the comment count for the post
 	err = IncrementCommentCount(db, postID) // Ensure IncrementCommentCount uses db
 	if err != nil {
-			log.Printf("Failed to increment comment count for post: %v", err)
-			return err
+		log.Printf("Failed to increment comment count for post: %v", err)
+		return err
 	}
 
 	fmt.Println("Comment inserted successfully, and comment count updated!")
 	return nil
 }
-
 
 func InsertReaction(db *sql.DB, userID, postID, commentID int, reactionType string) error {
 	// Insert or update the reaction
@@ -101,44 +98,43 @@ func InsertReaction(db *sql.DB, userID, postID, commentID int, reactionType stri
 
 	_, err := db.Exec(insertReactionSQL, userID, postID, commentID, reactionType)
 	if err != nil {
-			log.Printf("Failed to insert reaction: %v", err)
-			return err
+		log.Printf("Failed to insert reaction: %v", err)
+		return err
 	}
 
 	// Update like and dislike counts based on the reactionType (for posts)
 	if postID != 0 {
-			switch reactionType {
-			case "Like":
-					err = IncrementLikeCount(db, postID) // Pass db
-					if err != nil {
-							log.Printf("Failed to increment like count: %v", err)
-							return err
-					}
-			case "Dislike":
-					err = IncrementDislikeCount(db, postID) // Pass db
-					if err != nil {
-							log.Printf("Failed to increment dislike count: %v", err)
-							return err
-					}
-			}
-	} else if commentID != 0 {
-			// Handle comment-specific reactions
-			switch reactionType {
-			case "Like":
-					err = IncrementLikeCountForComment(db, commentID) // Pass db
-			case "Dislike":
-					err = IncrementDislikeCountForComment(db, commentID) // Pass db
-			}
+		switch reactionType {
+		case "Like":
+			err = IncrementLikeCount(db, postID) // Pass db
 			if err != nil {
-					log.Printf("Failed to increment comment reaction count: %v", err)
-					return err
+				log.Printf("Failed to increment like count: %v", err)
+				return err
 			}
+		case "Dislike":
+			err = IncrementDislikeCount(db, postID) // Pass db
+			if err != nil {
+				log.Printf("Failed to increment dislike count: %v", err)
+				return err
+			}
+		}
+	} else if commentID != 0 {
+		// Handle comment-specific reactions
+		switch reactionType {
+		case "Like":
+			err = IncrementLikeCountForComment(db, commentID) // Pass db
+		case "Dislike":
+			err = IncrementDislikeCountForComment(db, commentID) // Pass db
+		}
+		if err != nil {
+			log.Printf("Failed to increment comment reaction count: %v", err)
+			return err
+		}
 	}
 
 	fmt.Println("Reaction inserted successfully!")
 	return nil
 }
-
 
 // InsertPostCategory inserts a relation between a post and a category
 func InsertPostCategory(db *sql.DB, postID, categoryID int) error {
@@ -151,3 +147,4 @@ func InsertPostCategory(db *sql.DB, postID, categoryID int) error {
 	fmt.Println("Post-Category relation inserted successfully!")
 	return nil
 }
+

@@ -3,7 +3,7 @@ package database
 import (
 	"database/sql" // Provides database-related functions (Open, Query, etc.)
 	"log"          // For logging errors and important information
-
+	"fmt"
 	_ "github.com/mattn/go-sqlite3" // Blank import for SQLite3 driver, needed to interact with SQLite databases
 )
 
@@ -211,3 +211,23 @@ func QueryPostDetails(db *sql.DB, postID int) (Post, error) {
 	return post, nil
 }
 
+func UpdateUserProfile(db *sql.DB, id, firstName, lastName, email, age, gender string, avatarPath *string) error {
+	query := `
+		UPDATE users 
+		SET first_name = ?, last_name = ?, email = ?, age = ?, gender = ?, avatar = ?
+		WHERE id = ?
+	`
+
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		return fmt.Errorf("failed to prepare update query: %w", err)
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(firstName, lastName, email, age, gender, avatarPath, id)
+	if err != nil {
+		return fmt.Errorf("failed to execute update: %w", err)
+	}
+
+	return nil
+}

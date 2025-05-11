@@ -1,54 +1,72 @@
 package database
-
 import (
-	"database/sql"
-	"log"
-	"golang.org/x/crypto/bcrypt"
+  "database/sql"
+  "log"
+  "golang.org/x/crypto/bcrypt"
 )
-
 // HashPassword creates a bcrypt hash from password string
 func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	return string(bytes), err
+  bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+  return string(bytes), err
 }
-
 // ValidateUser checks if username/password combo is valid
 func ValidateUser(db *sql.DB, username, password string) (int, bool) {
-	var (
-		id int
-		storedPassword string
-	)
-	
-	// Query for the stored password hash and user ID
-	err := db.QueryRow("SELECT id, password FROM Users WHERE username = ?", username).Scan(&id, &storedPassword)
-	if err != nil {
-		log.Printf("Failed to find user with username %s: %v", username, err)
-		return 0, false
-	}
-
-	// Compare the provided password with the stored hash
-	err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(password))
-	if err != nil {
-		log.Println("Invalid password")
-		return 0, false
-	}
-
-	return id, true
+  var (
+    id int
+    storedPassword string
+  )
+  
+  // Query for the stored password hash and user ID
+  err := db.QueryRow("SELECT id, password FROM Users WHERE username = ?", username).Scan(&id, &storedPassword)
+  if err != nil {
+    log.Printf("Failed to find user with username %s: %v", username, err)
+    return 0, false
+  }
+  // Compare the provided password with the stored hash
+  err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(password))
+  if err != nil {
+    log.Println("Invalid password")
+    return 0, false
+  }
+  return id, true
 }
-
 // RegisterUser creates a new user in the database
-func RegisterUser(db *sql.DB, username, first_name, last_name, email, password string, age int, gender string) error {
-	// Hash the password
-	hashedPassword, err := HashPassword(password)
-	if err != nil {
-		return err
-	}
+func RegisterUser(db *sql.DB, username, first_name, last_name, email, password, avatar string, age int, gender string) error {
+  // Hash the password
+  hashedPassword, err := HashPassword(password)
+  if err != nil {
+    return err
+  }
 
-	// Insert the new user
-	_, err = db.Exec(`
-		INSERT INTO Users (username, first_name, last_name, email, password, age, gender)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		username, first_name, last_name, email, hashedPassword, age, gender)
-	
-	return err
+  // Log the values being inserted
+  log.Printf("Registering: username=%s, email=%s, avatar=%s, age=%d, gender=%s", username, email, avatar, age, gender)
+
+
+  // Insert the new user
+  result, err := db.Exec(`
+    INSERT INTO Users (username, first_name, last_name, email, password, avatar, age, gender)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    username, first_name, last_name, email, hashedPassword, avatar, age, gender)
+  
+  if err != nil {
+    log.Printf("Error inserting user: %v", err)
+    return err
+  }
+
+  // Log successful insertion
+  id, _ := result.LastInsertId()
+  log.Printf("Successfully inserted user with ID: %d", id)
+  
+  return nil
 } 
+
+func GetUserByID(db *sql.DB, userID string) (*User, error) {
+  var user User
+  err := db.QueryRow("SELECT id, username, first_name, last_name, email, avatar, gender, age FROM Users WHERE id = ?", userID).
+      Scan(&user.ID, &user.Username, &user.FirstName, &user.LastName, &user.Email, &user.Avatar, &user.Gender, &user.Age)
+
+  if err != nil {
+      return nil, err
+  }
+  return &user, nil
+}
