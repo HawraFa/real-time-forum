@@ -49,6 +49,7 @@ func main() {
 	fmt.Println("Database connected.")
 
 	database.CreateTables(db)
+	session.InitSessionStore("super-secret-key") // BEFORE starting routes
 	database.QueryUsers(db)
 	database.QueryPosts(db, nil)
 	database.QueryComments(db, nil)
@@ -110,6 +111,11 @@ func main() {
 			http.Error(w, `{"error": "User not found"}`, http.StatusInternalServerError)
 			return
 		}
+
+		sessionData, _ := session.Store.Get(r, "forum-session")
+		sessionData.Values["authenticated"] = true
+		sessionData.Values["user_id"] = user.ID
+		sessionData.Save(r, w)
 
 		json.NewEncoder(w).Encode(user)
 	}))
