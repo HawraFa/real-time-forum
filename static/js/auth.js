@@ -121,11 +121,12 @@ export async function handleLogin(event) {
         localStorage.setItem('currentUser', JSON.stringify(data));
 
         // Optional ChatManager init if available
+        showHomePage(data);
         if (!window.ChatManager && window.chatManager) {
             window.chatManager = new ChatManager();
         }
 
-        showHomePage(data);
+        
 
     } catch (err) {
         error.textContent = err.message;
