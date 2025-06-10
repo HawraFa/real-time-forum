@@ -10,10 +10,11 @@ type User struct {
 	FirstName string `json:"firstName"`
 	LastName string `json:"lastName"`
 	Email    string `json:"email"`
-	Password string `json:"password" `
+	Password string `json:"password"`
 	Avatar   string `json:"avatar"`
 	Gender   string `json:"gender"`
 	Age      int    `json:"age"`
+    IsOnline  bool   `json:"isOnline"` 
 }
 type Post struct {
 	ID            int       `json:"id"`
@@ -33,21 +34,24 @@ type Post struct {
 
 // Category represents a category structure
 type Category struct {
-	ID   int
-	Name string
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }
+
 
 // Comment represents a comment structure
 type Comment struct {
-	ID            int
-	PostID        int
-	UserID        int
-	Content       string
-	CreatedAt     string //could comment this but will mess up queries
-	LikesCount    int
-	DislikesCount int
-	Username      string
+	ID            int       `json:"id"`
+	PostID        int       `json:"post_id"`
+	UserID        int       `json:"user_id"`
+	Content       string    `json:"content"`
+	CreatedAt     string    `json:"created_at"`
+	LikesCount    int       `json:"likes_count"`
+	DislikesCount int       `json:"dislikes_count"`
+	Username      string    `json:"username"`
+	Avatar     		string 		`json:"avatar"`
 }
+
 
 // Reaction represents a reaction structure
 type Reaction struct {

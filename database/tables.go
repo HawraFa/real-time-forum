@@ -84,6 +84,14 @@ func CreateTables(db *sql.DB) {
          PRIMARY KEY (post_id, category_id)
      ); `
 
+    createUserStatusTable := `
+	CREATE TABLE IF NOT EXISTS user_status (
+		user_id INTEGER PRIMARY KEY,
+		is_online BOOLEAN DEFAULT FALSE,
+		last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES Users(id)
+	);`
+
 	// Private Messages table
 	createPrivateMessagesTable := `
     CREATE TABLE IF NOT EXISTS PrivateMessages (
@@ -95,9 +103,10 @@ func CreateTables(db *sql.DB) {
         FOREIGN KEY (sender_id) REFERENCES Users(id),
         FOREIGN KEY (receiver_id) REFERENCES Users(id)
     );`
+    
 
 	// Execute all the CREATE TABLE commands
-	tables := []string{createUsersTable, createCategoriesTable, createPostsTable, createCommentsTable, createReactionsTable, createPostsCategoriesTable, createPrivateMessagesTable}
+	tables := []string{createUsersTable, createCategoriesTable, createPostsTable, createCommentsTable, createReactionsTable, createPostsCategoriesTable, createPrivateMessagesTable, createUserStatusTable}
 	for _, table := range tables {
 		_, err := db.Exec(table)
 		if err != nil {

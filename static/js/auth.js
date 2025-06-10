@@ -1,16 +1,13 @@
 import { showHomePage } from './home.js';
 
+// ---- Login Form ----
 export function showLoginForm() {
     const chatWindow = document.querySelector(".chat-window");
     const chatSidebar = document.querySelector(".chat-sidebar");
-    
-    if (chatWindow) {
-        chatWindow.style.display = "none";
-    }
-    if (chatSidebar) {
-        chatSidebar.style.display = "none";
-    }
-    
+
+    if (chatWindow) chatWindow.style.display = "none";
+    if (chatSidebar) chatSidebar.style.display = "none";
+
     const app = document.getElementById('app');
     app.innerHTML = `
         <div class="container">
@@ -35,17 +32,14 @@ export function showLoginForm() {
     `;
 }
 
+// ---- Registration Form ----
 export function showRegistrationForm() {
     const chatWindow = document.querySelector(".chat-window");
     const chatSidebar = document.querySelector(".chat-sidebar");
-    
-    if (chatWindow) {
-        chatWindow.style.display = "none";
-    }
-    if (chatSidebar) {
-        chatSidebar.style.display = "none";
-    }
-    
+
+    if (chatWindow) chatWindow.style.display = "none";
+    if (chatSidebar) chatSidebar.style.display = "none";
+
     const app = document.getElementById('app');
     app.innerHTML = `
         <div class="container">
@@ -78,10 +72,9 @@ export function showRegistrationForm() {
 
                  <div class="form-group">
                     <label for="gender">Gender</label>
-                    <select id="gender">
-                        <option value ="female"> Female </option>
-                        <option value ="male"> Male </option>
-
+                    <select id="gender" name="gender">
+                        <option value="female"> Female </option>
+                        <option value="male"> Male </option>
                     </select>
                 </div>
 
@@ -98,6 +91,7 @@ export function showRegistrationForm() {
     `;
 }
 
+// ---- Handle Login ----
 export async function handleLogin(event) {
     event.preventDefault();
     const form = event.target;
@@ -105,7 +99,7 @@ export async function handleLogin(event) {
     error.style.display = 'none';
 
     try {
-        const response = await fetch('http://localhost:8082/api/login', {
+        const response = await fetch('http://localhost:8083/api/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -114,38 +108,38 @@ export async function handleLogin(event) {
                 username: form.username.value,
                 password: form.password.value,
             }),
-            credentials: 'include' // ✅ Ensure cookie is saved
+            credentials: 'include' // Ensure cookie is saved
         });
 
+        const data = await response.json();
+        console.log("Login response data:", data);
+
         if (!response.ok) {
-            throw new Error('Login failed');
+            throw new Error(data.error || 'Login failed');
         }
 
-        const data = await response.json();
         localStorage.setItem('currentUser', JSON.stringify(data));
 
-
-               
-        window.showHomePage(data);
-        
-        // ✅ Only now, start ChatManager
-        showHomePage(data);
+        // Optional ChatManager init if available
         if (!window.ChatManager && window.chatManager) {
             window.chatManager = new ChatManager();
         }
+
+        showHomePage(data);
 
     } catch (err) {
         error.textContent = err.message;
         error.style.display = 'block';
     }
 }
+
+// ---- Handle Registration ----
 export async function handleRegistration(event) {
     event.preventDefault();
     const form = event.target;
     const error = document.getElementById('error');
     error.style.display = 'none';
 
-    // Log the form data
     const formData = {
         username: form.username.value,
         email: form.email.value,
@@ -155,10 +149,11 @@ export async function handleRegistration(event) {
         age: parseInt(form.age.value),
         gender: form.gender.value,
     };
+
     console.log("Registration form data:", formData);
 
     try {
-        const response = await fetch('http://localhost:8082/api/register', {
+        const response = await fetch('http://localhost:8083/api/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -175,20 +170,23 @@ export async function handleRegistration(event) {
 
         alert('Registration successful! Please login.');
         showLoginForm();
+
     } catch (err) {
         error.textContent = err.message;
         error.style.display = 'block';
     }
 }
 
+// ---- Handle Logout ----
 export function handleLogout() {
     localStorage.removeItem('currentUser');
     showLoginForm();
 }
 
+// ---- Show Profile ----
 export function showProfile() {
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    
+
     if (!currentUser) {
         showLoginForm();
         return;
@@ -204,7 +202,7 @@ export function showProfile() {
             </div>
             <div class="nav-right">
                 <div class="profile-menu">
-                    <img src="${currentUser.avatar || '/static/images/default.png'}" alt="Profile" class="profile-icon">
+                    <img src="${currentUser.avatar || '/static/images/profile.png'}" alt="Profile" class="profile-icon">
                     <span>${currentUser.username}</span>
                 </div>
             </div>
@@ -212,41 +210,23 @@ export function showProfile() {
         <div class="container">
             <h2>Profile Information</h2>
             <div class="profile-info">
-                <div class="profile-field">
-                    <label>Username:</label>
-                    <span>${currentUser.username}</span>
-                </div>
-                <div class="profile-field">
-                    <label>Email:</label>
-                    <span>${currentUser.email || 'N/A'}</span>
-                </div>
-                <div class="profile-field">
-                    <label>First Name:</label>
-                    <span>${currentUser.firstName || 'N/A'}</span>
-                </div>
-                <div class="profile-field">
-                    <label>Last Name:</label>
-                    <span>${currentUser.lastName || 'N/A'}</span>
-                </div>
-                <div class="profile-field">
-                    <label>Age:</label>
-                    <span>${currentUser.age || 'N/A'}</span>
-                </div>
-                <div class="profile-field">
-                    <label>Gender:</label>
-                    <span>${currentUser.gender || 'N/A'}</span>
-                </div>
+                <div class="profile-field"><label>Username:</label><span>${currentUser.username}</span></div>
+                <div class="profile-field"><label>Email:</label><span>${currentUser.email || 'N/A'}</span></div>
+                <div class="profile-field"><label>First Name:</label><span>${currentUser.firstName || 'N/A'}</span></div>
+                <div class="profile-field"><label>Last Name:</label><span>${currentUser.lastName || 'N/A'}</span></div>
+                <div class="profile-field"><label>Age:</label><span>${currentUser.age || 'N/A'}</span></div>
+                <div class="profile-field"><label>Gender:</label><span>${currentUser.gender || 'N/A'}</span></div>
             </div>
             <div class="profile-actions">
                 <button onclick="handleLogout()">Logout</button>
-                <button onclick="showHomePage(${JSON.stringify(currentUser)})">Back to Home</button>
+                <button onclick="backToHome()">Back to Home</button>
                 <button onclick="showEditProfile()">Edit Profile</button>
-
             </div>
         </div>
     `;
 }
 
+// ---- Show Edit Profile ----
 function showEditProfile() {
     const user = JSON.parse(localStorage.getItem("currentUser"));
     const app = document.getElementById("app");
@@ -255,22 +235,10 @@ function showEditProfile() {
         <div class="container">
             <h2>Edit Profile</h2>
             <form id="editProfileForm">
-                <div class="form-group">
-                    <label>First Name:</label>
-                    <input type="text" name="firstName" value="${user.firstName || ''}" required>
-                </div>
-                <div class="form-group">
-                    <label>Last Name:</label>
-                    <input type="text" name="lastName" value="${user.lastName || ''}" required>
-                </div>
-                <div class="form-group">
-                    <label>Email:</label>
-                    <input type="email" name="email" value="${user.email || ''}" required>
-                </div>
-                <div class="form-group">
-                    <label>Age:</label>
-                    <input type="number" name="age" value="${user.age || ''}" required>
-                </div>
+                <div class="form-group"><label>First Name:</label><input type="text" name="firstName" value="${user.firstName || ''}" required></div>
+                <div class="form-group"><label>Last Name:</label><input type="text" name="lastName" value="${user.lastName || ''}" required></div>
+                <div class="form-group"><label>Email:</label><input type="email" name="email" value="${user.email || ''}" required></div>
+                <div class="form-group"><label>Age:</label><input type="number" name="age" value="${user.age || ''}" required></div>
                 <div class="form-group">
                     <label>Gender:</label>
                     <select name="gender">
@@ -278,47 +246,67 @@ function showEditProfile() {
                         <option value="male" ${user.gender === 'male' ? 'selected' : ''}>Male</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Profile Picture:</label>
-                    <input type="file" name="profilePicture" accept="image/*">
-                </div>
+                <div class="form-group"><label>Profile Picture:</label><input type="file" name="profilePicture" accept="image/*"></div>
                 <button type="submit">Save Changes</button>
                 <button type="button" onclick="showProfile()">Cancel</button>
             </form>
         </div>
     `;
 
-    // Attach submit listener
     document.getElementById("editProfileForm").addEventListener("submit", handleProfileUpdate);
 }
+
+// ---- Handle Profile Update ----
 async function handleProfileUpdate(event) {
     event.preventDefault();
     const form = event.target;
     const formData = new FormData(form);
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
 
-    formData.append("id", currentUser.id); // include user ID
+    formData.append("id", String(currentUser.id)); // Always send ID as string
+    formData.append("age", String(form.age.value)); // Send age as string
 
     try {
-        const response = await fetch("http://localhost:8082/api/profile/update", {
+        const response = await fetch("http://localhost:8083/api/profile/update", {
             method: "POST",
             body: formData
         });
 
-        const updatedUser = await response.json();
+        const rawText = await response.text();
+        console.log("🧾 Raw server response:", rawText);
 
         if (!response.ok) {
-            throw new Error(updatedUser.error || "Profile update failed");
+            throw new Error(rawText);
         }
 
-        alert("Profile updated successfully!");
+        const updatedUser = JSON.parse(rawText);
         localStorage.setItem("currentUser", JSON.stringify(updatedUser));
         showProfile();
     } catch (err) {
-        alert(err.message);
+        alert("⚠️ Update failed: " + err.message);
     }
 }
-window.showHomePage = showHomePage;
+
+// ---- Back to Home ----
+export function backToHome() {
+    const raw = localStorage.getItem("currentUser");
+    if (!raw) {
+        alert("⚠️ No user found in localStorage.");
+        return;
+    }
+
+    try {
+        const currentUser = JSON.parse(raw);
+        console.log("Navigating back to home with user:", currentUser);
+        showHomePage(currentUser);
+    } catch (err) {
+        console.error("⚠️ Failed to parse currentUser:", err.message);
+        alert("⚠️ Failed to parse user info. Try logging in again.");
+        handleLogout();
+    }
+}
+
+window.backToHome = backToHome; // Make it global
 window.showEditProfile = showEditProfile;
 // Make functions globally available for onclick handlers
 window.showLoginForm = showLoginForm;

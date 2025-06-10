@@ -187,17 +187,17 @@ button:hover {
 }
 
 /* Chat sidebar layout */
+
+
 .chat-sidebar {
+    z-index: 1000;
     position: fixed;
     left: 0;
     top: 0;
     width: 280px;
     height: 100vh;
-    background: #ffffff;
+    background-color: white;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    z-index: 1000;
 }
 
 /* Chat sidebar header */
@@ -207,6 +207,7 @@ button:hover {
     background: #1a73e8;
     color: white;
 }
+
 
 .chat-sidebar-header h2 {
     margin: 0;
@@ -222,27 +223,30 @@ button:hover {
 }
 
 /* User list styling */
+.chat-users-container,
 .chat-user-list {
     list-style: none;
     padding: 0;
     margin: 0;
+    overflow-y: auto;
+    height: 100%;
 }
 
 .chat-user-item {
     display: flex;
     align-items: center;
-    padding: 12px 16px;
-    border-bottom: 1px solid #f0f2f5;
+    padding: 12px;
+    border-bottom: 1px solid #eeeeee;
     cursor: pointer;
     transition: background-color 0.2s;
 }
 
 .chat-user-item:hover {
-    background-color: #f8f9fa;
+    background-color: #f5f5f5;
 }
 
 .chat-user-item.active {
-    background-color: #e8f0fe;
+    background-color: #e3f2fd;
 }
 
 /* User avatar and status */
@@ -262,38 +266,38 @@ button:hover {
     position: absolute;
     bottom: 0;
     right: 0;
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
-    border: 2px solid #ffffff;
+    border: 2px solid white;
 }
 
 .status-online {
-    background-color: #34d859;
+    background-color: #4caf50;
 }
 
 .status-offline {
-    background-color: #6b7280;
+    background-color: #9e9e9e;
 }
 
 /* User info */
 .chat-user-info {
     flex: 1;
+    min-width: 0;
 }
 
 .chat-user-name {
-    font-weight: 500;
-    color: #1f2937;
-    margin-bottom: 4px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 2px;
 }
 
-.chat-last-message {
-    font-size: 0.875rem;
-    color: #6b7280;
+.chat-user-fullname {
+    font-size: 0.9em;
+    color: #666;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 180px;
 }
 
 /* Time and unread count */
@@ -367,4 +371,109 @@ button:hover {
 
 .profile-dropdown a:hover {
     background-color: #f5f5f5;
+}
+
+/* Chat Window Styles */
+.chat-window {
+    display: none;
+    margin-left: 280px;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#chat-header {
+    font-weight: bold;
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    background: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+}
+
+.chat-messages {
+    height: 400px;
+    overflow-y: auto;
+    padding: 15px;
+    background: #fff;
+}
+
+/* Message Input Form Styles */
+.message-input-form {
+    display: flex;
+    gap: 10px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-top: 1px solid #eee;
+    border-radius: 0 0 8px 8px;
+}
+
+.message-input {
+    flex: 1;
+    min-width: 0;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    outline: none;
+    font-size: 14px;
+    width: 100%;
+}
+
+.send-button {
+    width: auto !important;
+    min-width: 80px;
+    padding: 12px 20px !important;
+    background: #007bff !important;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.send-button:hover {
+    background: #0056b3 !important;
+}
+
+.typing-indicator {
+    padding: 0 15px 10px;
+    font-size: 0.9em;
+    color: #666;
+}
+
+/* Message Styles */
+.message {
+    margin-bottom: 15px;
+    max-width: 80%;
+}
+
+.message.sent {
+    margin-left: auto;
+}
+
+.message.received {
+    margin-right: auto;
+}
+
+.message-content {
+    padding: 10px 15px;
+    border-radius: 15px;
+    background: #f0f2f5;
+}
+
+.message.sent .message-content {
+    background: #007bff;
+    color: white;
+}
+
+.message-info {
+    font-size: 0.8em;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.message.sent .message-info {
+    text-align: right;
 }

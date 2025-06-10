@@ -34,7 +34,7 @@ func InsertUser(db *sql.DB, username, first_name, last_name, password, email, av
 
 // insertInitialCategories adds predefined categories to the Categories table
 func InsertInitialCategories(db *sql.DB) error {
-	categories := []string{"Technology", "Arts", "History", "Music", "Cooking", "Fashion", "Travel", "Politics", "Other"}
+	categories := []string{"General", "Technology", "Arts", "History", "Music", "Cooking", "Fashion", "Travel", "Politics", "Other"}
 	for _, category := range categories {
 		insertCategorySQL := `INSERT OR IGNORE INTO Categories (name) VALUES (?);`
 		_, err := db.Exec(insertCategorySQL, category)
@@ -90,49 +90,66 @@ func InsertComment(db *sql.DB, postID, userID int, content string) error {
 }
 
 func InsertReaction(db *sql.DB, userID, postID, commentID int, reactionType string) error {
-	// Insert or update the reaction
-	insertReactionSQL := `INSERT INTO reactions (user_id, post_id, comment_id, type)
-	VALUES (?, ?, ?, ?)
-	ON CONFLICT(user_id, post_id, comment_id)
-	DO UPDATE SET type = excluded.type;`
+	var prevType string
+	err := db.QueryRow(
+		`SELECT type FROM reactions WHERE user_id = ? AND post_id = ? AND comment_id = ?`,
+		userID, postID, commentID,
+	).Scan(&prevType)
 
-	_, err := db.Exec(insertReactionSQL, userID, postID, commentID, reactionType)
-	if err != nil {
-		log.Printf("Failed to insert reaction: %v", err)
+	if err != nil && err != sql.ErrNoRows {
+		log.Printf("Error checking previous reaction: %v", err)
 		return err
 	}
 
-	// Update like and dislike counts based on the reactionType (for posts)
-	if postID != 0 {
-		switch reactionType {
-		case "Like":
-			err = IncrementLikeCount(db, postID) // Pass db
-			if err != nil {
-				log.Printf("Failed to increment like count: %v", err)
-				return err
-			}
-		case "Dislike":
-			err = IncrementDislikeCount(db, postID) // Pass db
-			if err != nil {
-				log.Printf("Failed to increment dislike count: %v", err)
-				return err
-			}
-		}
-	} else if commentID != 0 {
-		// Handle comment-specific reactions
-		switch reactionType {
-		case "Like":
-			err = IncrementLikeCountForComment(db, commentID) // Pass db
-		case "Dislike":
-			err = IncrementDislikeCountForComment(db, commentID) // Pass db
-		}
+	// If the same reaction already exists, remove it (toggle off)
+	if prevType == reactionType {
+		_, err := db.Exec(`DELETE FROM reactions WHERE user_id = ? AND post_id = ? AND comment_id = ?`, userID, postID, commentID)
 		if err != nil {
-			log.Printf("Failed to increment comment reaction count: %v", err)
+			log.Printf("Failed to delete toggled reaction: %v", err)
 			return err
+		}
+		if postID != 0 {
+			if reactionType == "Like" {
+				_ = DecrementLikeCount(db, postID)
+			} else if reactionType == "Dislike" {
+				_ = DecrementDislikeCount(db, postID)
+			}
+		}
+		return nil // Stop here since it's toggle off
+	}
+
+	// If switching reactions (Like <-> Dislike)
+	if prevType == "Like" && reactionType == "Dislike" {
+		_ = DecrementLikeCount(db, postID)
+		_ = IncrementDislikeCount(db, postID)
+	} else if prevType == "Dislike" && reactionType == "Like" {
+		_ = DecrementDislikeCount(db, postID)
+		_ = IncrementLikeCount(db, postID)
+	} else if prevType == "" {
+		// First time reacting
+		if postID != 0 {
+			if reactionType == "Like" {
+				_ = IncrementLikeCount(db, postID)
+			} else if reactionType == "Dislike" {
+				_ = IncrementDislikeCount(db, postID)
+			}
 		}
 	}
 
-	fmt.Println("Reaction inserted successfully!")
+	// Now insert or update the reaction
+	insertSQL := `
+		INSERT INTO reactions (user_id, post_id, comment_id, type)
+		VALUES (?, ?, ?, ?)
+		ON CONFLICT(user_id, post_id, comment_id)
+		DO UPDATE SET type = excluded.type;
+	`
+	_, err = db.Exec(insertSQL, userID, postID, commentID, reactionType)
+	if err != nil {
+		log.Printf("Failed to insert/update reaction: %v", err)
+		return err
+	}
+
+	fmt.Println("✅ Reaction inserted/updated successfully!")
 	return nil
 }
 

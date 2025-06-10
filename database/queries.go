@@ -1,4 +1,4 @@
-package database
+	package database
 
 import (
 	"database/sql" // Provides database-related functions (Open, Query, etc.)
@@ -14,7 +14,7 @@ func QueryUsers(db *sql.DB) ([]User, error) {
 		log.Printf("Failed to query Users: %v", err)
 		return nil, err
 	}
-	//rows.Close(): This closes the rows object, freeing up any resources it is using. It’s important to close the rows object after you’re done using it to prevent resource leaks.
+		//rows.Close(): This closes the rows object, freeing up any resources it is using. It’s important to close the rows object after you’re done using it to prevent resource leaks.
 	defer rows.Close()
 	var users []User
 	//Looping Through the Query Results
@@ -54,45 +54,56 @@ func QueryCategories(db *sql.DB) ([]Category, error) {
 func QueryPosts(db *sql.DB, userID *int) ([]Post, error) {
 	var rows *sql.Rows
 	var err error
-	// SQL query to retrieve post information along with username and avatar
+
 	if userID != nil {
 		query := `
-			SELECT p.id, p.user_id, p.category_id, p.title, p.content, p.timestamp, p.like_count, p.dislike_count, p.comment_count, u.username, u.avatar
+			SELECT p.id, p.user_id, p.category_id, p.title, p.content, p.timestamp, 
+			       p.like_count, p.dislike_count, p.comment_count, 
+			       u.username, u.avatar
 			FROM Posts p
 			JOIN Users u ON p.user_id = u.id
 			WHERE p.user_id = ?`
 		rows, err = db.Query(query, *userID)
 	} else {
 		query := `
-			SELECT p.id, p.user_id, p.category_id, p.title, p.content, p.timestamp, p.like_count, p.dislike_count, p.comment_count, u.username, u.avatar
+			SELECT p.id, p.user_id, p.category_id, p.title, p.content, p.timestamp, 
+			       p.like_count, p.dislike_count, p.comment_count, 
+			       u.username, u.avatar
 			FROM Posts p
 			JOIN Users u ON p.user_id = u.id`
 		rows, err = db.Query(query)
 	}
-	// Handle query errors
+
 	if err != nil {
 		log.Printf("Failed to query Posts: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
-	
-	// Initialize the slice to store posts
+
 	var posts []Post
 	for rows.Next() {
 		var post Post
-		// Scan each row into the Post struct, including username and avatar
+		var avatar sql.NullString // only avatar may be null!
+
 		err := rows.Scan(
-			&post.ID, &post.UserID, &post.CategoryID, &post.Title, &post.Content, &post.CreatedAt, &post.LikesCount,
-			&post.DislikesCount, &post.CommentsCount, &post.Username, &post.Avatar,
+			&post.ID, &post.UserID, &post.CategoryID, &post.Title, &post.Content,
+			&post.CreatedAt, &post.LikesCount, &post.DislikesCount, &post.CommentsCount,
+			&post.Username, &avatar,
 		)
 		if err != nil {
+			log.Printf("❌ Scan error: %v", err)
 			return nil, err
 		}
-	
-		// Append the post to the posts slice
+
+		if avatar.Valid {
+			post.Avatar = avatar.String
+		} else {
+			post.Avatar = "/static/images/profile.png"
+		}
+
 		posts = append(posts, post)
 	}
-	// Check for errors that might have occurred during the iteration
+
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
@@ -103,31 +114,67 @@ func QueryPosts(db *sql.DB, userID *int) ([]Post, error) {
 func QueryComments(db *sql.DB, postID *int) ([]Comment, error) {
 	var rows *sql.Rows
 	var err error
-	// If postID is provided, filter by post ID; otherwise, retrieve all comments
+
+	// Join with Users to get commenter's username and avatar
 	if postID != nil {
-		rows, err = db.Query("SELECT id, post_id, user_id, content, timestamp, like_count, dislike_count  FROM Comments WHERE post_id = ?", *postID)
+		rows, err = db.Query(`
+			SELECT c.id, c.post_id, c.user_id, c.content, c.timestamp, c.like_count, c.dislike_count,
+			       u.username, u.avatar
+			FROM Comments c
+			JOIN Users u ON c.user_id = u.id
+			WHERE c.post_id = ?
+			ORDER BY c.timestamp ASC
+		`, *postID)
 	} else {
-		rows, err = db.Query("SELECT id, post_id, user_id, content, like_count, dislike_count timestamp FROM Comments;")
+		rows, err = db.Query(`
+			SELECT c.id, c.post_id, c.user_id, c.content, c.timestamp, c.like_count, c.dislike_count,
+			       u.username, u.avatar
+			FROM Comments c
+			JOIN Users u ON c.user_id = u.id
+			ORDER BY c.timestamp ASC
+		`)
 	}
+
 	if err != nil {
 		log.Printf("Failed to query Comments: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
+
 	var comments []Comment
 	for rows.Next() {
 		var comment Comment
-		if err := rows.Scan(&comment.ID, &comment.PostID, &comment.UserID, &comment.Content, &comment.CreatedAt, &comment.LikesCount, &comment.DislikesCount); err != nil {
+		var username sql.NullString
+		var avatar sql.NullString
+
+		err := rows.Scan(
+			&comment.ID, &comment.PostID, &comment.UserID, &comment.Content, &comment.CreatedAt,
+			&comment.LikesCount, &comment.DislikesCount, &username, &avatar,
+		)
+		if err != nil {
+			log.Printf("❌ Error scanning comment row: %v", err)
 			return nil, err
 		}
+
+		comment.Username = "Unknown"
+		if username.Valid {
+			comment.Username = username.String
+		}
+
+		comment.Avatar = "/static/images/profile.png"
+		if avatar.Valid {
+			comment.Avatar = avatar.String
+		}
+
 		comments = append(comments, comment)
 	}
-	// Check if there was an error during row iteration
+
 	if err = rows.Err(); err != nil {
-		return nil, err // Return if there was an iteration error
+		return nil, err
 	}
 	return comments, nil
 }
+
 
 // queryReactions retrieves all reactions from the Reactions table and prints their details
 func QueryReactions(db *sql.DB) ([]Reaction, error) {
@@ -211,9 +258,11 @@ func QueryPostDetails(db *sql.DB, postID int) (Post, error) {
 	return post, nil
 }
 
-func UpdateUserProfile(db *sql.DB, id, firstName, lastName, email, age, gender string, avatarPath *string) error {
+func UpdateUserProfile(db *sql.DB, id int, firstName, lastName, email string, age int, gender string, avatarPath *string) error {
+	log.Printf("🔧 UpdateUserProfile called: id=%d, email=%s", id, email)
+
 	query := `
-		UPDATE users 
+		UPDATE Users 
 		SET first_name = ?, last_name = ?, email = ?, age = ?, gender = ?, avatar = ?
 		WHERE id = ?
 	`
@@ -224,10 +273,16 @@ func UpdateUserProfile(db *sql.DB, id, firstName, lastName, email, age, gender s
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(firstName, lastName, email, age, gender, avatarPath, id)
+	result, err := stmt.Exec(firstName, lastName, email, age, gender, avatarPath, id)
 	if err != nil {
 		return fmt.Errorf("failed to execute update: %w", err)
 	}
+
+	rowsAffected, _ := result.RowsAffected()
+	log.Printf("✅ Rows affected: %d", rowsAffected)
+
+	// 🧠 FIX: Remove strict failure when 0 rows are affected
+	// Don't return error if 0 rows changed — it may just mean values are the same
 
 	return nil
 }

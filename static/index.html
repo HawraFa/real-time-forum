@@ -7,36 +7,32 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <div id="app">
-        <!-- Content will be dynamically inserted here -->
-    </div>
+  <div id="app">
+    <!-- Content will be dynamically inserted here -->
+  </div>
+  <!-- Add missing container -->
+  <div class="chat-users-container">
+    <ul id="chat-user-list" class="chat-user-list"></ul>
+  </div>
+</div>
 
-    <div class="chat-sidebar">
-        <div class="chat-sidebar-header">
-            <h2>Messages</h2>
-        </div>
-        <div class="chat-users-container">
-            <ul class="chat-user-list">
-                <li class="chat-user-item">
-                    <div class="chat-user-avatar">
-                        <img src="user-avatar.jpg" alt="User Name">
-                        <span class="chat-user-status status-online"></span>
-                    </div>
-                    <div class="chat-user-info">
-                        <div class="chat-user-name">User Name</div>
-                        <div class="chat-last-message">Last message preview...</div>
-                    </div>
-                    <div class="chat-message-meta">
-                        <span class="chat-time">12:30</span>
-                        <span class="chat-unread-count">2</span>
-                    </div>
-                </li>
-                <!-- More user items... -->
-            </ul>
-        </div>
-    </div>
+<!-- Chat Window -->
+<div class="chat-window">
+    <div id="chat-header"></div>
 
-    <!-- Note the type="module" and correct path -->
-    <script type="module" src="/static/js/app.js"></script>
+    <div id="chat-messages" class="chat-messages"></div>
+
+    <!-- Message Input Form -->
+    <form class="message-input-form" id="chat-message-form">
+        <input type="text" class="message-input" placeholder="Type a message..." />
+        <button type="submit" class="send-button">Send</button>
+    </form>
+
+    <!-- Typing Indicator -->
+    <div class="typing-indicator"></div>
+</div>
+
+  <!-- Scripts -->
+  <script type="module" src="/static/js/app.js"></script>
 </body>
 </html> 

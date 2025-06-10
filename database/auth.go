@@ -4,6 +4,7 @@ import (
   "log"
   "golang.org/x/crypto/bcrypt"
 )
+
 // HashPassword creates a bcrypt hash from password string
 func HashPassword(password string) (string, error) {
   bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -60,13 +61,34 @@ func RegisterUser(db *sql.DB, username, first_name, last_name, email, password, 
   return nil
 } 
 
-func GetUserByID(db *sql.DB, userID string) (*User, error) {
-  var user User
-  err := db.QueryRow("SELECT id, username, first_name, last_name, email, avatar, gender, age FROM Users WHERE id = ?", userID).
-      Scan(&user.ID, &user.Username, &user.FirstName, &user.LastName, &user.Email, &user.Avatar, &user.Gender, &user.Age)
+// func GetUserByID(db *sql.DB, userID string) (*User, error) {
+//   var user User
+//   err := db.QueryRow("SELECT id, username, first_name, last_name, email, avatar, gender, age FROM Users WHERE id = ?", userID).
+//       Scan(&user.ID, &user.Username, &user.FirstName, &user.LastName, &user.Email, &user.Avatar, &user.Gender, &user.Age)
 
-  if err != nil {
-      return nil, err
-  }
-  return &user, nil
+//   if err != nil {
+//       return nil, err
+//   }
+//   return &user, nil
+// }
+
+func GetUserByID(db *sql.DB, userID int) (*User, error) {
+	var user User
+	var avatar sql.NullString
+
+	err := db.QueryRow(`SELECT id, username, first_name, last_name, email, avatar, gender, age FROM Users WHERE id = ?`, userID).
+		Scan(&user.ID, &user.Username, &user.FirstName, &user.LastName, &user.Email, &avatar, &user.Gender, &user.Age)
+
+	if err != nil {
+		log.Printf("❌ Failed to get user by ID: %v", err)
+		return nil, err
+	}
+
+	if avatar.Valid {
+		user.Avatar = avatar.String
+	} else {
+		user.Avatar =  "/static/images/profile.png"
+	}
+
+	return &user, nil
 }
