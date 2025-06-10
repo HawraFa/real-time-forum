@@ -1,6 +1,16 @@
 import { showHomePage } from './home.js';
 
 export function showLoginForm() {
+    const chatWindow = document.querySelector(".chat-window");
+    const chatSidebar = document.querySelector(".chat-sidebar");
+    
+    if (chatWindow) {
+        chatWindow.style.display = "none";
+    }
+    if (chatSidebar) {
+        chatSidebar.style.display = "none";
+    }
+    
     const app = document.getElementById('app');
     app.innerHTML = `
         <div class="container">
@@ -26,6 +36,16 @@ export function showLoginForm() {
 }
 
 export function showRegistrationForm() {
+    const chatWindow = document.querySelector(".chat-window");
+    const chatSidebar = document.querySelector(".chat-sidebar");
+    
+    if (chatWindow) {
+        chatWindow.style.display = "none";
+    }
+    if (chatSidebar) {
+        chatSidebar.style.display = "none";
+    }
+    
     const app = document.getElementById('app');
     app.innerHTML = `
         <div class="container">
@@ -94,27 +114,31 @@ export async function handleLogin(event) {
                 username: form.username.value,
                 password: form.password.value,
             }),
+            credentials: 'include' // ✅ Ensure cookie is saved
         });
 
-        const data = await response.json();
-        console.log("Login response data:", data);
-
-        // const text = await response.text();   // Instead of response.json()
-        // console.log("Raw response text:", text);
-
-
         if (!response.ok) {
-            throw new Error(data.error || 'Login failed');
+            throw new Error('Login failed');
         }
 
+        const data = await response.json();
         localStorage.setItem('currentUser', JSON.stringify(data));
+
+
+               
+        window.showHomePage(data);
+        
+        // ✅ Only now, start ChatManager
         showHomePage(data);
+        if (!window.ChatManager && window.chatManager) {
+            window.chatManager = new ChatManager();
+        }
+
     } catch (err) {
         error.textContent = err.message;
         error.style.display = 'block';
     }
 }
-
 export async function handleRegistration(event) {
     event.preventDefault();
     const form = event.target;
@@ -294,7 +318,7 @@ async function handleProfileUpdate(event) {
         alert(err.message);
     }
 }
-
+window.showHomePage = showHomePage;
 window.showEditProfile = showEditProfile;
 // Make functions globally available for onclick handlers
 window.showLoginForm = showLoginForm;
