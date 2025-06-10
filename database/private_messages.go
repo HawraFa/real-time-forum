@@ -33,14 +33,8 @@ func GetUserMessages(db *sql.DB, user1ID, user2ID int64, offset int) ([]PrivateM
 
 // SaveMessage saves a new private message and updates the last interaction
 func SaveMessage(db *sql.DB, senderID, receiverID int64, message string) error {
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
 	// Insert the message
-	result, err := tx.Exec(`
+	result, err := db.Exec(`
 		INSERT INTO private_messages (sender_id, receiver_id, message_text)
 		VALUES (?, ?, ?)`,
 		senderID, receiverID, message)
@@ -54,18 +48,15 @@ func SaveMessage(db *sql.DB, senderID, receiverID int64, message string) error {
 	}
 
 	// Update or insert last interaction
-	_, err = tx.Exec(`
+	_, err = db.Exec(`
 		INSERT INTO chat_last_interactions (user1_id, user2_id, last_message_id, last_interaction_time)
 		VALUES (?, ?, ?, CURRENT_TIMESTAMP)
 		ON CONFLICT(user1_id, user2_id) DO UPDATE SET
-		last_message_id = ?,
-		last_interaction_time = CURRENT_TIMESTAMP`,
+			last_message_id = ?,
+			last_interaction_time = CURRENT_TIMESTAMP`,
 		senderID, receiverID, messageID, messageID)
-	if err != nil {
-		return err
-	}
 
-	return tx.Commit()
+	return err
 }
 
 // GetUserChats retrieves all chat conversations for a user, sorted by last interaction
