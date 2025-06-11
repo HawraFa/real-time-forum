@@ -446,6 +446,6 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]bool{"success": true})
 	}))
 
-	log.Println("Server started at http://localhost:8083")
-	log.Fatal(http.ListenAndServe(":8083", nil))
+	log.Println("Server started at http://localhost:8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
