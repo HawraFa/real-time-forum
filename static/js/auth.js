@@ -99,7 +99,7 @@ export async function handleLogin(event) {
     error.style.display = 'none';
 
     try {
-        const response = await fetch('http://localhost:8083/api/login', {
+        const response = await fetch('http://localhost:8080/api/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -154,7 +154,7 @@ export async function handleRegistration(event) {
     console.log("Registration form data:", formData);
 
     try {
-        const response = await fetch('http://localhost:8083/api/register', {
+        const response = await fetch('http://localhost:8080/api/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -268,7 +268,7 @@ async function handleProfileUpdate(event) {
     formData.append("age", String(form.age.value)); // Send age as string
 
     try {
-        const response = await fetch("http://localhost:8083/api/profile/update", {
+        const response = await fetch("http://localhost:8080/api/profile/update", {
             method: "POST",
             body: formData
         });

@@ -12,8 +12,10 @@ import (
 	"real-time-forum/session"
 	websocket "real-time-forum/websocket"
 
-	_ "github.com/mattn/go-sqlite3"
 	"strconv"
+	"strings"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type LoginRequest struct {
@@ -56,7 +58,6 @@ func main() {
 	database.QueryReactions(db)
 	database.QueryCategories(db)
 
-	
 	websocket.DB = db // ⬅️ set DB connection for WebSocket
 	http.HandleFunc("/ws", websocket.ServeWS(db))
 
@@ -120,17 +121,42 @@ func main() {
 		json.NewEncoder(w).Encode(user)
 	}))
 
-	
 	// Get all users endpoint
 	http.HandleFunc("/api/users", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+		// Set content type first
 		w.Header().Set("Content-Type", "application/json")
+
+		// Only allow GET requests
 		if r.Method != http.MethodGet {
 			http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
 
-		rows, err := db.Query("SELECT id, username, first_name, last_name, email, avatar, gender, age FROM Users")
+		// Add pagination parameters (optional)
+		limit := 100 // Default limit
+		if l := r.URL.Query().Get("limit"); l != "" {
+			if l, err := strconv.Atoi(l); err == nil && l > 0 {
+				limit = l
+			}
+		}
+
+		offset := 0
+		if o := r.URL.Query().Get("offset"); o != "" {
+			if o, err := strconv.Atoi(o); err == nil && o >= 0 {
+				offset = o
+			}
+		}
+
+		// Query database with pagination
+		rows, err := db.Query(`
+        SELECT id, username, first_name, last_name, email, avatar, gender, age 
+        FROM Users 
+        ORDER BY username ASC
+        LIMIT ? OFFSET ?
+    `, limit, offset)
+
 		if err != nil {
+			log.Printf("Database query error: %v", err)
 			http.Error(w, `{"error": "Failed to fetch users"}`, http.StatusInternalServerError)
 			return
 		}
@@ -139,97 +165,161 @@ func main() {
 		var users []database.User
 		for rows.Next() {
 			var u database.User
-			err := rows.Scan(&u.ID, &u.Username, &u.FirstName, &u.LastName, &u.Email, &u.Avatar, &u.Gender, &u.Age)
-			if err != nil {
-				http.Error(w, `{"error": "Failed to parse users"}`, http.StatusInternalServerError)
-				return
+			if err := rows.Scan(
+				&u.ID, &u.Username, &u.FirstName, &u.LastName,
+				&u.Email, &u.Avatar, &u.Gender, &u.Age,
+			); err != nil {
+				log.Printf("Row scan error: %v", err)
+				continue // Skip problematic rows instead of failing entire request
 			}
 
 			// Get online status
-			var isOnline bool
-			_ = db.QueryRow("SELECT is_online FROM user_status WHERE user_id = ?", u.ID).Scan(&isOnline)
-			u.IsOnline = isOnline
+			err := db.QueryRow(`
+            SELECT is_online 
+            FROM user_status 
+            WHERE user_id = ?
+        `, u.ID).Scan(&u.IsOnline)
+
+			if err != nil && err != sql.ErrNoRows {
+				log.Printf("Status query error: %v", err)
+			}
+
 			users = append(users, u)
 		}
+
+		if err := rows.Err(); err != nil {
+			log.Printf("Rows error: %v", err)
+		}
+
+		// Return empty array instead of null when no users
+		if users == nil {
+			users = []database.User{}
+		}
+
+		// Cache control headers
+		w.Header().Set("Cache-Control", "max-age=60") // Cache for 1 minute
 
 		json.NewEncoder(w).Encode(users)
 	}))
 
+http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+
+    // Extract user ID from URL
+    idStr := strings.TrimPrefix(r.URL.Path, "/api/users/")
+    userID, err := strconv.Atoi(idStr)
+    if err != nil {
+        http.Error(w, `{"error": "Invalid user ID"}`, http.StatusBadRequest)
+        return
+    }
+
+    // Get user from database
+    var user database.User
+    err = db.QueryRow(`
+        SELECT id, username, first_name, last_name, email, avatar, gender, age 
+        FROM Users 
+        WHERE id = ?
+    `, userID).Scan(
+        &user.ID, &user.Username, &user.FirstName, &user.LastName,
+        &user.Email, &user.Avatar, &user.Gender, &user.Age,
+    )
+
+    if err != nil {
+        if err == sql.ErrNoRows {
+            http.Error(w, `{"error": "User not found"}`, http.StatusNotFound)
+        } else {
+            log.Printf("Database error: %v", err)
+            http.Error(w, `{"error": "Database error"}`, http.StatusInternalServerError)
+        }
+        return
+    }
+
+    // Get online status from in-memory manager
+    statusManager := websocket.GetStatusManager()
+    if status, exists := statusManager.GetUser(int64(userID)); exists {
+        user.IsOnline = status.IsOnline
+    } else {
+        user.IsOnline = false
+    }
+
+    // Cache control
+    w.Header().Set("Cache-Control", "max-age=120") // Cache for 2 minutes
+
+    json.NewEncoder(w).Encode(user)
+}))
 
 	http.HandleFunc("/api/profile/update", enableCORS(func(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "application/json")
-    if r.Method != http.MethodPost {
-        http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
-        return
-    }
-    err := r.ParseMultipartForm(10 << 20)
-    if err != nil {
-        http.Error(w, `{"error": "Failed to parse form data"}`, http.StatusBadRequest)
-        return
-    }
-    // Parse and convert string fields to proper types
-    idStr := r.FormValue("id")
-    ageStr := r.FormValue("age")
-    id, err := strconv.Atoi(idStr)
-    if err != nil {
-        http.Error(w, `{"error":"Invalid user ID"}`, http.StatusBadRequest)
-        return
-    }
-    age, err := strconv.Atoi(ageStr)
-    if err != nil {
-        http.Error(w, `{"error":"Invalid age"}`, http.StatusBadRequest)
-        return
-    }
-    firstName := r.FormValue("firstName")
-    lastName := r.FormValue("lastName")
-    email := r.FormValue("email")
-    gender := r.FormValue("gender")
-    var avatarPath *string = nil
-    fmt.Println("🧪 Form values 1:", idStr, firstName, lastName, email, ageStr, gender)
-    // Handle optional profile picture upload
-    file, handler, err := r.FormFile("profilePicture")
-    if err == nil && handler != nil {
-        defer file.Close()
-        os.MkdirAll("static/images", os.ModePerm)
-        filename := "static/images/" + handler.Filename
-        f, err := os.Create(filename)
-        if err == nil {
-            defer f.Close()
-            io.Copy(f, file)
-            path := "/static/images/" + handler.Filename
-            avatarPath = &path
-        }
-    }
-    log.Println("🧾 Parsed FormData: id =", id, ", age =", age, ", email =", email)
-    // Update user
-    err = database.UpdateUserProfile(db, id, firstName, lastName, email, age, gender, avatarPath)
-    if err != nil {
-        log.Printf("❌ UpdateUserProfile failed: %v", err)
-        http.Error(w, fmt.Sprintf(`{"error": "Failed to update user: %v"}`, err), http.StatusInternalServerError)
-        return
-    }
-
-
-    // Retrieve updated user and return it
-    // updatedUser, err := database.GetUserByID(db, fmt.Sprintf("%d", id))
-		updatedUser, err := database.GetUserByID(db, id)  // NOT fmt.Sprintf
-
-    if err != nil {
-        http.Error(w, `{"error": "User not found"}`, http.StatusInternalServerError)
-        return
-    }
-    json.NewEncoder(w).Encode(updatedUser)
-}))
-	
-
-		http.HandleFunc("/api/categories", enableCORS(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			categories, err := database.QueryCategories(db)
-			if err != nil {
-					http.Error(w, `{"error":"Failed to load categories"}`, http.StatusInternalServerError)
-					return
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		err := r.ParseMultipartForm(10 << 20)
+		if err != nil {
+			http.Error(w, `{"error": "Failed to parse form data"}`, http.StatusBadRequest)
+			return
+		}
+		// Parse and convert string fields to proper types
+		idStr := r.FormValue("id")
+		ageStr := r.FormValue("age")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			http.Error(w, `{"error":"Invalid user ID"}`, http.StatusBadRequest)
+			return
+		}
+		age, err := strconv.Atoi(ageStr)
+		if err != nil {
+			http.Error(w, `{"error":"Invalid age"}`, http.StatusBadRequest)
+			return
+		}
+		firstName := r.FormValue("firstName")
+		lastName := r.FormValue("lastName")
+		email := r.FormValue("email")
+		gender := r.FormValue("gender")
+		var avatarPath *string = nil
+		fmt.Println("🧪 Form values 1:", idStr, firstName, lastName, email, ageStr, gender)
+		// Handle optional profile picture upload
+		file, handler, err := r.FormFile("profilePicture")
+		if err == nil && handler != nil {
+			defer file.Close()
+			os.MkdirAll("static/images", os.ModePerm)
+			filename := "static/images/" + handler.Filename
+			f, err := os.Create(filename)
+			if err == nil {
+				defer f.Close()
+				io.Copy(f, file)
+				path := "/static/images/" + handler.Filename
+				avatarPath = &path
 			}
-			json.NewEncoder(w).Encode(categories)
+		}
+		log.Println("🧾 Parsed FormData: id =", id, ", age =", age, ", email =", email)
+		// Update user
+		err = database.UpdateUserProfile(db, id, firstName, lastName, email, age, gender, avatarPath)
+		if err != nil {
+			log.Printf("❌ UpdateUserProfile failed: %v", err)
+			http.Error(w, fmt.Sprintf(`{"error": "Failed to update user: %v"}`, err), http.StatusInternalServerError)
+			return
+		}
+
+		// Retrieve updated user and return it
+		// updatedUser, err := database.GetUserByID(db, fmt.Sprintf("%d", id))
+		updatedUser, err := database.GetUserByID(db, id) // NOT fmt.Sprintf
+
+		if err != nil {
+			http.Error(w, `{"error": "User not found"}`, http.StatusInternalServerError)
+			return
+		}
+		json.NewEncoder(w).Encode(updatedUser)
+	}))
+
+	http.HandleFunc("/api/categories", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		categories, err := database.QueryCategories(db)
+		if err != nil {
+			http.Error(w, `{"error":"Failed to load categories"}`, http.StatusInternalServerError)
+			return
+		}
+		json.NewEncoder(w).Encode(categories)
 	}))
 
 	http.HandleFunc("/api/posts/create", enableCORS(func(w http.ResponseWriter, r *http.Request) {
@@ -273,14 +363,14 @@ func main() {
 	http.HandleFunc("/api/posts", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		posts, err := database.QueryPosts(db, nil)
-	if err != nil {
-		log.Printf("❌ QueryPosts failed: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{
-			"error": fmt.Sprintf("Failed to fetch posts: %v", err),
-		})
-		return
-	}
+		if err != nil {
+			log.Printf("❌ QueryPosts failed: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": fmt.Sprintf("Failed to fetch posts: %v", err),
+			})
+			return
+		}
 		if posts == nil {
 			log.Println("QueryPosts returned nil — setting to empty list")
 			posts = []database.Post{}
@@ -388,7 +478,6 @@ func main() {
 		http.ServeFile(w, r, "static/index.html")
 	})
 
-	
 	// 🔁 NEW: Chat History API
 	http.HandleFunc("/api/chat/history", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -401,6 +490,8 @@ func main() {
 			http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
+
+		log.Println("Current User ID:", currentUserID)
 
 		otherUserID, _ := strconv.Atoi(userID)
 		offset, _ := strconv.Atoi(offsetStr)

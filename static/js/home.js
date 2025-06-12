@@ -18,7 +18,7 @@ export async function showHomePage(user) {
     // 🔄 Fetch fresh user data from backend (friend's logic)
     let freshUser = user;
     try {
-        const res = await fetch(`http://localhost:8083/api/user/${user.id}`);
+        const res = await fetch(`http://localhost:8080/api/user/${user.id}`);
         if (res.ok) {
             freshUser = await res.json();
         } else {
@@ -110,7 +110,7 @@ export async function showCreatePost() {
     // Fetch categories from backend (friend's version)
     let categoryOptions = "<option value=''>Loading...</option>";
     try {
-        const res = await fetch("http://localhost:8083/api/categories");
+        const res = await fetch("http://localhost:8080/api/categories");
         const categories = await res.json();
         categoryOptions = categories.map(cat => `
             <option value="${cat.id}">${cat.name}</option>
@@ -161,7 +161,7 @@ async function handleCreatePost(event) {
     };
 
     try {
-        const response = await fetch("http://localhost:8083/api/posts/create", {
+        const response = await fetch("http://localhost:8080/api/posts/create", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -185,7 +185,7 @@ async function showAllPosts() {
     const app = document.getElementById("app");
 
     try {
-        const response = await fetch("http://localhost:8083/api/posts");
+        const response = await fetch("http://localhost:8080/api/posts");
         const data = await response.json();
 
         if (!response.ok) {

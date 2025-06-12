@@ -3,7 +3,7 @@ export async function reactToPost(postId, type) {
   const reactionType = type.charAt(0).toUpperCase() + type.slice(1);  // Make it 'Like' or 'Dislike'
 
   try {
-      const res = await fetch("http://localhost:8083/api/react", {
+      const res = await fetch("http://localhost:8080/api/react", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

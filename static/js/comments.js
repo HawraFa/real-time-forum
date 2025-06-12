@@ -8,7 +8,7 @@ export async function loadComments(postId) {
   }
 
   try {
-    const response = await fetch(`http://localhost:8083/api/comments?post_id=${postId}`);
+    const response = await fetch(`http://localhost:8080/api/comments?post_id=${postId}`);
     const comments = await response.json();
 
     console.log("Comments received for post", postId, comments);

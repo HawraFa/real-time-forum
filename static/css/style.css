@@ -272,6 +272,7 @@ button:hover {
     border: 2px solid white;
 }
 
+
 .status-online {
     background-color: #4caf50;
 }
@@ -438,9 +439,12 @@ button:hover {
 }
 
 .typing-indicator {
-    padding: 0 15px 10px;
+    padding: 10px 15px;
     font-size: 0.9em;
     color: #666;
+    background: #f8f9fa;
+    border-top: 1px solid #eee;
+    display: none;
 }
 
 /* Message Styles */
