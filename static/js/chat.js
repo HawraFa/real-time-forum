@@ -165,9 +165,11 @@ updateUsersList(users) {
     if (!userList) return;
     userList.innerHTML = "";
 
-    users.forEach((user) => {
-        if (user.id === this.currentUserId) return;
+    // Sort users alphabetically by username
+    const sortedUsers = users.filter(user => user.id !== this.currentUserId)
+        .sort((a, b) => a.username.localeCompare(b.username));
 
+    sortedUsers.forEach((user) => {
         const userElement = document.createElement("li");
         userElement.className = "chat-user-item";
         userElement.dataset.userId = user.id;
