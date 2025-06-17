@@ -6,27 +6,16 @@ import (
 // CountLikesForPost counts the total number of likes for a specific post
 func CountLikesForPost(db *sql.DB, postID int) (int, error) {
 	var totalLikes int
-	err := db.QueryRow("SELECT COUNT(*) FROM reactions WHERE post_id = ? AND reaction_type = 'like'", postID).Scan(&totalLikes)
+	err := db.QueryRow("SELECT COUNT(*) FROM reactions WHERE post_id = ? AND type = 'like'", postID).Scan(&totalLikes)
 	return totalLikes, err
 }
 // CountDislikesForPost counts the total number of dislikes for a specific post
 func CountDislikesForPost(db *sql.DB, postID int) (int, error) {
 	var totalDislikes int
-	err := db.QueryRow("SELECT COUNT(*) FROM reactions WHERE post_id = ? AND reaction_type = 'dislike'", postID).Scan(&totalDislikes)
+	err := db.QueryRow("SELECT COUNT(*) FROM reactions WHERE post_id = ? AND type = 'dislike'", postID).Scan(&totalDislikes)
 	return totalDislikes, err
 }
-// CountLikesForComment counts the total number of likes for a specific comment
-func CountLikesForComment(db *sql.DB, commentID int) (int, error) {
-	var totalLikes int
-	err := db.QueryRow("SELECT COUNT(*) FROM reactions WHERE comment_id = ? AND reaction_type = 'like'", commentID).Scan(&totalLikes)
-	return totalLikes, err
-}
-// CountDislikesForComment counts the total number of dislikes for a specific comment
-func CountDislikesForComment(db *sql.DB, commentID int) (int, error) {
-	var totalDislikes int
-	err := db.QueryRow("SELECT COUNT(*) FROM reactions WHERE comment_id = ? AND reaction_type = 'dislike'", commentID).Scan(&totalDislikes)
-	return totalDislikes, err
-}
+
 // CountCommentsForPost counts the total number of comments for a specific post
 func CountCommentsForPost(db *sql.DB, postID int) (int, error) {
 	var totalComments int
@@ -46,28 +35,6 @@ func IncrementDislikeCount(db *sql.DB, postID int) error {
 // Increment the comment count for a post
 func IncrementCommentCount(db *sql.DB, postID int) error {
 	_, err := db.Exec(`UPDATE Posts SET comment_count = comment_count + 1 WHERE id = ?`, postID)
-	return err
-}
-// Increment the like count for a comment
-func IncrementLikeCountForComment(db *sql.DB, commentID int) error {
-	_, err := db.Exec(`UPDATE Comments SET like_count = like_count + 1 WHERE id = ?`, commentID)
-	return err
-}
-// Increment the dislike count for a comment
-func IncrementDislikeCountForComment(db *sql.DB, commentID int) error {
-	_, err := db.Exec(`UPDATE Comments SET dislike_count = dislike_count + 1 WHERE id = ?`, commentID)
-	return err
-}
-// DecrementLikeCountForComment decrements the like count for a comment
-func DecrementLikeCountForComment(db *sql.DB, commentID int) error {
-	// Prepare the SQL statement to decrement the like count
-	_, err := db.Exec("UPDATE Comments SET like_count = like_count - 1 WHERE id = ?", commentID)
-	return err
-}
-// DecrementDislikeCountForComment decrements the dislike count for a comment
-func DecrementDislikeCountForComment(db *sql.DB, commentID int) error {
-	// Prepare the SQL statement to decrement the like count
-	_, err := db.Exec("UPDATE Comments SET dislike_count = dislike_count - 1 WHERE id = ?", commentID)
 	return err
 }
 // Decrement the like count for a post

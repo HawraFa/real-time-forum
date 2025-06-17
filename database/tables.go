@@ -54,8 +54,6 @@ func CreateTables(db *sql.DB) {
         user_id INTEGER NOT NULL,
         content TEXT NOT NULL,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-        like_count INTEGER DEFAULT 0,
-        dislike_count INTEGER DEFAULT 0,
         FOREIGN KEY (post_id) REFERENCES Posts(id),
         FOREIGN KEY (user_id) REFERENCES Users(id)
     );`

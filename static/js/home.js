@@ -1,5 +1,6 @@
 import { ChatManager } from "./chat.js";
 import { reactToPost } from './reactions.js';
+import { showPostDetails } from "./post.js"; 
 
 export async function showHomePage(user) {
     const app = document.getElementById("app");
@@ -222,8 +223,9 @@ async function showAllPosts() {
             return;
         }
 
+        //  <div class="post" onclick="showPostDetails(${post.id})" style="cursor:pointer;">
         let postHTML = posts.map(post => `
-            <div class="post" onclick="showPostDetails(${post.id})" style="cursor:pointer;">
+            <div class="post" data-post-id="${post.id}" style="cursor:pointer;">
                 <h3>${post.title}</h3>
                 <p>${post.content.substring(0, 100)}...</p>
                 <div class="post-footer">
@@ -236,11 +238,11 @@ async function showAllPosts() {
                 </div>
 
                 <div class="reactions">
-                    <button class="like-button" onclick="reactToPost(${post.id}, 'like')">
+                    <button class="like-button" data-post-id="${post.id}" data-type="like">
                         <img src="/static/images/like.png" alt="Like">
                         <span id="likes-${post.id}">${post.likes_count}</span>
                     </button>
-                    <button class="dislike-button" onclick="reactToPost(${post.id}, 'dislike')">
+                    <button class="dislike-button" data-post-id="${post.id}" data-type="dislike">
                         <img src="/static/images/dislike.png" alt="Dislike">
                         <span id="dislikes-${post.id}">${post.dislikes_count}</span>
                     </button>
@@ -250,6 +252,34 @@ async function showAllPosts() {
         `).join("");
 
         postsContainer.innerHTML = postHTML || "<p>No posts found.</p>";
+
+        // Attach reaction buttons
+        document.querySelectorAll(".like-button, .dislike-button").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const postId = parseInt(btn.getAttribute("data-post-id"));
+            const type = btn.getAttribute("data-type");
+            reactToPost(postId, type);
+        });
+        });
+
+        // Attach post detail navigation
+        document.querySelectorAll(".post").forEach(postDiv => {
+        postDiv.addEventListener("click", (e) => {
+            const postId = postDiv.getAttribute("data-post-id");
+            const tag = e.target.tagName.toLowerCase();
+            const classList = e.target.classList;
+
+            if (
+            !classList.contains("like-button") &&
+            !classList.contains("dislike-button") &&
+            tag !== "img" &&
+            tag !== "span"
+            ) {
+            showPostDetails(postId);
+            }
+        });
+    });  
 
     } catch (error) {
         console.error("Error loading posts:", error);

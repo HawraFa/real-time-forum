@@ -79,7 +79,7 @@ func InsertComment(db *sql.DB, postID, userID int, content string) error {
 	}
 
 	// Increment the comment count for the post
-	err = IncrementCommentCount(db, postID) // Ensure IncrementCommentCount uses db
+	err = IncrementCommentCount(db, postID)
 	if err != nil {
 		log.Printf("Failed to increment comment count for post: %v", err)
 		return err
@@ -91,14 +91,15 @@ func InsertComment(db *sql.DB, postID, userID int, content string) error {
 
 func InsertReaction(db *sql.DB, userID, postID, commentID int, reactionType string) error {
 	var prevType string
-	err := db.QueryRow(
-		`SELECT type FROM reactions WHERE user_id = ? AND post_id = ? AND comment_id = ?`,
-		userID, postID, commentID,
-	).Scan(&prevType)
+	row := db.QueryRow(`SELECT type FROM reactions WHERE user_id = ? AND post_id = ? AND comment_id = ?`, userID, postID, commentID)
+	err := row.Scan(&prevType)
 
-	if err != nil && err != sql.ErrNoRows {
-		log.Printf("Error checking previous reaction: %v", err)
-		return err
+	reactionExists := true
+	if err == sql.ErrNoRows {
+			reactionExists = false
+	} else if err != nil {
+			log.Printf("Error checking previous reaction: %v", err)
+			return err
 	}
 
 	// If the same reaction already exists, remove it (toggle off)
@@ -127,15 +128,17 @@ func InsertReaction(db *sql.DB, userID, postID, commentID int, reactionType stri
 		_ = IncrementLikeCount(db, postID)
 	} else if prevType == "" {
 		// First time reacting
+		// First time reacting
+	if !reactionExists {
 		if postID != 0 {
-			if reactionType == "Like" {
-				_ = IncrementLikeCount(db, postID)
-			} else if reactionType == "Dislike" {
-				_ = IncrementDislikeCount(db, postID)
-			}
+				if reactionType == "Like" {
+						_ = IncrementLikeCount(db, postID)
+				} else if reactionType == "Dislike" {
+						_ = IncrementDislikeCount(db, postID)
+				}
 		}
 	}
-
+}
 	// Now insert or update the reaction
 	insertSQL := `
 		INSERT INTO reactions (user_id, post_id, comment_id, type)
@@ -152,6 +155,69 @@ func InsertReaction(db *sql.DB, userID, postID, commentID int, reactionType stri
 	fmt.Println("✅ Reaction inserted/updated successfully!")
 	return nil
 }
+
+// func InsertReaction(db *sql.DB, userID, postID int, reactionType string) error {
+// 	var prevType string
+// 	err := db.QueryRow(`
+// 		SELECT type FROM reactions 
+// 		WHERE user_id = ? AND post_id = ? AND comment_id IS NULL
+// 	`, userID, postID).Scan(&prevType)
+
+// 	if err != nil && err != sql.ErrNoRows {
+// 		log.Printf("Error checking previous reaction: %v", err)
+// 		return err
+// 	}
+
+// 	// Toggle off if same reaction
+// 	if prevType == reactionType {
+// 		_, err := db.Exec(`
+// 			DELETE FROM reactions 
+// 			WHERE user_id = ? AND post_id = ? AND comment_id IS NULL
+// 		`, userID, postID)
+// 		if err != nil {
+// 			log.Printf("Failed to delete reaction: %v", err)
+// 			return err
+// 		}
+// 		if reactionType == "Like" {
+// 			_ = DecrementLikeCount(db, postID)
+// 		} else {
+// 			_ = DecrementDislikeCount(db, postID)
+// 		}
+// 		return nil
+// 	}
+
+// 	// Switching from Like to Dislike or vice versa
+// 	if prevType == "Like" && reactionType == "Dislike" {
+// 		_ = DecrementLikeCount(db, postID)
+// 		_ = IncrementDislikeCount(db, postID)
+// 	} else if prevType == "Dislike" && reactionType == "Like" {
+// 		_ = DecrementDislikeCount(db, postID)
+// 		_ = IncrementLikeCount(db, postID)
+// 	} else if prevType == "" {
+// 		// New reaction
+// 		if reactionType == "Like" {
+// 			_ = IncrementLikeCount(db, postID)
+// 		} else {
+// 			_ = IncrementDislikeCount(db, postID)
+// 		}
+// 	}
+
+// 	// Upsert reaction
+// 	_, err = db.Exec(`
+// 		INSERT INTO reactions (user_id, post_id, type)
+// 		VALUES (?, ?, ?)
+// 		ON CONFLICT(user_id, post_id) DO UPDATE SET type = excluded.type
+// 	`, userID, postID, reactionType)
+
+// 	if err != nil {
+// 		log.Printf("Failed to insert/update reaction: %v", err)
+// 		return err
+// 	}
+
+// 	log.Println("✅ Reaction processed successfully")
+// 	return nil
+// }
+
 
 // InsertPostCategory inserts a relation between a post and a category
 func InsertPostCategory(db *sql.DB, postID, categoryID int) error {

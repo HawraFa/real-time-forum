@@ -1,5 +1,6 @@
 import { showLoginForm } from './auth.js';
 import { showHomePage } from './home.js';
+import { showPostDetails } from "./post.js"; 
 import './categories.js';
 
 // Theme management

@@ -45,8 +45,6 @@ type Comment struct {
 	UserID        int    `json:"user_id"`
 	Content       string `json:"content"`
 	CreatedAt     string `json:"created_at"`
-	LikesCount    int    `json:"likes_count"`
-	DislikesCount int    `json:"dislikes_count"`
 	Username      string `json:"username"`
 	Avatar        string `json:"avatar"`
 }
@@ -56,7 +54,6 @@ type Reaction struct {
 	ID        int
 	UserID    int
 	PostID    int
-	CommentID int
 	Type      string
 	Timestamp string
 }

@@ -118,8 +118,7 @@ func QueryComments(db *sql.DB, postID *int) ([]Comment, error) {
 	// Join with Users to get commenter's username and avatar
 	if postID != nil {
 		rows, err = db.Query(`
-			SELECT c.id, c.post_id, c.user_id, c.content, c.timestamp, c.like_count, c.dislike_count,
-			       u.username, u.avatar
+			SELECT c.id, c.post_id, c.user_id, c.content, c.timestamp, u.username, u.avatar
 			FROM Comments c
 			JOIN Users u ON c.user_id = u.id
 			WHERE c.post_id = ?
@@ -127,8 +126,7 @@ func QueryComments(db *sql.DB, postID *int) ([]Comment, error) {
 		`, *postID)
 	} else {
 		rows, err = db.Query(`
-			SELECT c.id, c.post_id, c.user_id, c.content, c.timestamp, c.like_count, c.dislike_count,
-			       u.username, u.avatar
+			SELECT c.id, c.post_id, c.user_id, c.content, c.timestamp, u.username, u.avatar
 			FROM Comments c
 			JOIN Users u ON c.user_id = u.id
 			ORDER BY c.timestamp ASC
@@ -148,8 +146,7 @@ func QueryComments(db *sql.DB, postID *int) ([]Comment, error) {
 		var avatar sql.NullString
 
 		err := rows.Scan(
-			&comment.ID, &comment.PostID, &comment.UserID, &comment.Content, &comment.CreatedAt,
-			&comment.LikesCount, &comment.DislikesCount, &username, &avatar,
+			&comment.ID, &comment.PostID, &comment.UserID, &comment.Content, &comment.CreatedAt, &username, &avatar,
 		)
 		if err != nil {
 			log.Printf("❌ Error scanning comment row: %v", err)
@@ -178,7 +175,7 @@ func QueryComments(db *sql.DB, postID *int) ([]Comment, error) {
 
 // queryReactions retrieves all reactions from the Reactions table and prints their details
 func QueryReactions(db *sql.DB) ([]Reaction, error) {
-	rows, err := db.Query("SELECT id, user_id, post_id, comment_id, type, timestamp FROM Reactions;")
+	rows, err := db.Query("SELECT id, user_id, post_id, type, timestamp FROM Reactions;")
 	if err != nil {
 		log.Printf("Failed to query Reactions: %v", err)
 		return nil, err
@@ -187,7 +184,7 @@ func QueryReactions(db *sql.DB) ([]Reaction, error) {
 	var reactions []Reaction
 	for rows.Next() {
 		var reaction Reaction
-		if err := rows.Scan(&reaction.ID, &reaction.UserID, &reaction.PostID, &reaction.CommentID, &reaction.Type, &reaction.Timestamp); err != nil {
+		if err := rows.Scan(&reaction.ID, &reaction.UserID, &reaction.PostID, &reaction.Type, &reaction.Timestamp); err != nil {
 			return nil, err
 		}
 		reactions = append(reactions, reaction)

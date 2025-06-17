@@ -38,6 +38,7 @@ export async function loadComments(postId) {
 }
 window.loadComments = loadComments;
 
+
 export async function submitComment(event, postId) {
   console.log("Submitting comment to post:", postId);
 
