@@ -45,6 +45,10 @@ export async function showHomePage(user) {
                 <button onclick="showFilterPage()" class="filter-post-button" style="margin-bottom: 10px;">
                     <i class="fas fa-filter"></i> Filter Posts
                 </button>
+                <button id="my-posts-btn" class="my-posts-button">
+                    <i class="fas fa-user"></i> My Posts
+                </button>
+                 
                 <button onclick="showCreatePost()" class="create-post-button">
                     <i class="fas fa-plus"></i> Create Post
                 </button>
@@ -61,6 +65,30 @@ export async function showHomePage(user) {
 
     // Load posts
     showAllPosts();
+
+    document.getElementById("my-posts-btn")?.addEventListener("click", async () => {
+        const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+        if (!currentUser) {
+            alert("You must be logged in to view your posts.");
+            return;
+        }
+    
+        const response = await fetch(`/api/posts?user_id=${currentUser.id}`);
+        const data = await response.json();
+    
+        const postsContainer = document.getElementById("posts-container");
+        if (!Array.isArray(data) || data.length === 0) {
+            postsContainer.innerHTML = "<p>No posts found.</p>";
+            return;
+        }
+    
+        renderPosts(data); 
+    });
+    
+    // Show all posts
+    document.querySelector(".filter-post-button").addEventListener("click", () => {
+        showAllPosts(); // No filter
+    });
 }
 
 // Profile dropdown toggle (from both versions)
@@ -166,6 +194,137 @@ export async function showCreatePost() {
     }
 }
 
+export function renderPosts(posts, containerId = "posts-container") {
+    const postsContainer = document.getElementById(containerId);
+    if (!postsContainer) {
+        console.error("❌ Posts container not found");
+        return;
+    }
+
+    if (!Array.isArray(posts)) {
+        console.warn("❗ Posts is not an array:", posts);
+        postsContainer.innerHTML = "<p>⚠️ Failed to load posts.</p>";
+        return;
+    }
+
+    let postHTML = posts.map(post => `
+        <div class="post" data-post-id="${post.id}" style="cursor:pointer;">
+            <h3>${post.title}</h3>
+            <p>${post.content.substring(0, 100)}...</p>
+            <div class="post-footer">
+                <img src="${post.avatar || '/static/images/profile.png'}" 
+                     class="avatar-icon" 
+                     style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                <small>
+                    <strong>${post.username}</strong> — ${new Date(post.created_at).toLocaleString()}
+                </small>
+            </div>
+            <div class="reactions">
+                <button class="like-button" data-post-id="${post.id}" data-type="like">
+                    <img src="/static/images/like.png" alt="Like">
+                    <span id="likes-${post.id}">${post.likes_count}</span>
+                </button>
+                <button class="dislike-button" data-post-id="${post.id}" data-type="dislike">
+                    <img src="/static/images/dislike.png" alt="Dislike">
+                    <span id="dislikes-${post.id}">${post.dislikes_count}</span>
+                </button>
+            </div>
+        </div>
+    `).join("");
+
+    postsContainer.innerHTML = postHTML || "<p>No posts found.</p>";
+
+    // Attach reaction handlers
+    document.querySelectorAll(".like-button, .dislike-button").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const postId = parseInt(btn.getAttribute("data-post-id"));
+            const type = btn.getAttribute("data-type");
+            reactToPost(postId, type);
+        });
+    });
+
+    // Make whole post clickable
+    document.querySelectorAll(".post").forEach(postEl => {
+        postEl.addEventListener("click", () => {
+            const postId = postEl.getAttribute("data-post-id");
+            showPostDetails(postId);
+        });
+    });
+}
+
+window.showMyPosts = async function () {
+    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+    if (!currentUser) return;
+
+    try {
+        const response = await fetch(`http://localhost:8080/api/posts?user_id=${currentUser.id}`);
+        const posts = await response.json();
+
+        const postsContainer = document.getElementById("posts-container");
+        if (!postsContainer) return;
+
+        if (!posts.length) {
+            postsContainer.innerHTML = "<p>You haven’t posted anything yet.</p>";
+            return;
+        }
+
+        postsContainer.innerHTML = posts.map(post => `
+            <div class="post" data-post-id="${post.id}" style="cursor:pointer;">
+                <h3>${post.title}</h3>
+                <p>${post.content.substring(0, 100)}...</p>
+                <div class="post-footer">
+                    <img src="${post.avatar || '/static/images/profile.png'}"
+                    class="avatar-icon"
+                    style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                    <small>
+                        <strong>${post.username}</strong> — ${new Date(post.created_at).toLocaleString()}
+                    </small>
+                </div>
+                <div class="reactions">
+                    <button class="like-button" data-post-id="${post.id}" data-type="like">
+                        <img src="/static/images/like.png" alt="Like">
+                        <span id="likes-${post.id}">${post.likes_count}</span>
+                    </button>
+                    <button class="dislike-button" data-post-id="${post.id}" data-type="dislike">
+                        <img src="/static/images/dislike.png" alt="Dislike">
+                        <span id="dislikes-${post.id}">${post.dislikes_count}</span>
+                    </button>
+                </div>
+            </div>
+        `).join("");
+
+        document.querySelectorAll(".like-button, .dislike-button").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const postId = parseInt(btn.getAttribute("data-post-id"));
+                const type = btn.getAttribute("data-type");
+                reactToPost(postId, type);
+            });
+        });
+
+        document.querySelectorAll(".post").forEach(postDiv => {
+            postDiv.addEventListener("click", (e) => {
+                const postId = postDiv.getAttribute("data-post-id");
+                const tag = e.target.tagName.toLowerCase();
+                const classList = e.target.classList;
+
+                if (
+                    !classList.contains("like-button") &&
+                    !classList.contains("dislike-button") &&
+                    tag !== "img" &&
+                    tag !== "span"
+                ) {
+                    showPostDetails(postId);
+                }
+            });
+        });
+
+    } catch (error) {
+        console.error("Failed to load user posts:", error);
+    }
+};
+
 // Handle post creation (merged, friend’s version uses consistent naming and parseInt for IDs)
 async function handleCreatePost(event) {
     event.preventDefault();
@@ -200,9 +359,101 @@ async function handleCreatePost(event) {
 }
 
 // Show all posts (friend's detailed version with reactions and comments)
-async function showAllPosts() {
+// async function showAllPosts() {
+//     try {
+//         const response = await fetch("http://localhost:8080/api/posts");
+//         const data = await response.json();
+
+//         if (!response.ok) {
+//             console.error("❌ Server error:", data.error);
+//             return;
+//         }
+
+//         if (!Array.isArray(data)) {
+//             console.warn("❗ Expected array, got:", data);
+//             return;
+//         }
+
+//         const posts = data;
+//         const postsContainer = document.getElementById("posts-container");
+
+//         if (!postsContainer) {
+//             console.error("Posts container not found");
+//             return;
+//         }
+
+//         //  <div class="post" onclick="showPostDetails(${post.id})" style="cursor:pointer;">
+//         let postHTML = posts.map(post => `
+//             <div class="post" data-post-id="${post.id}" style="cursor:pointer;">
+//                 <h3>${post.title}</h3>
+//                 <p>${post.content.substring(0, 100)}...</p>
+//                 <div class="post-footer">
+//                     <img src="${post.avatar || '/static/images/profile.png'}" 
+//                     class="avatar-icon" 
+//                     style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+//                     <small>
+//                         <strong>${post.username}</strong> — ${new Date(post.created_at).toLocaleString()}
+//                     </small>
+//                 </div>
+
+//                 <div class="reactions">
+//                     <button class="like-button" data-post-id="${post.id}" data-type="like">
+//                         <img src="/static/images/like.png" alt="Like">
+//                         <span id="likes-${post.id}">${post.likes_count}</span>
+//                     </button>
+//                     <button class="dislike-button" data-post-id="${post.id}" data-type="dislike">
+//                         <img src="/static/images/dislike.png" alt="Dislike">
+//                         <span id="dislikes-${post.id}">${post.dislikes_count}</span>
+//                     </button>
+//                 </div>
+
+//             </div>
+//         `).join("");
+
+//         postsContainer.innerHTML = postHTML || "<p>No posts found.</p>";
+
+//         // Attach reaction buttons
+//         document.querySelectorAll(".like-button, .dislike-button").forEach(btn => {
+//         btn.addEventListener("click", (e) => {
+//             e.stopPropagation();
+//             const postId = parseInt(btn.getAttribute("data-post-id"));
+//             const type = btn.getAttribute("data-type");
+//             reactToPost(postId, type);
+//         });
+//         });
+
+//         // Attach post detail navigation
+//         document.querySelectorAll(".post").forEach(postDiv => {
+//         postDiv.addEventListener("click", (e) => {
+//             const postId = postDiv.getAttribute("data-post-id");
+//             const tag = e.target.tagName.toLowerCase();
+//             const classList = e.target.classList;
+
+//             if (
+//             !classList.contains("like-button") &&
+//             !classList.contains("dislike-button") &&
+//             tag !== "img" &&
+//             tag !== "span"
+//             ) {
+//             showPostDetails(postId);
+//             }
+//         });
+//     });  
+
+//     } catch (error) {
+//         console.error("Error loading posts:", error);
+//     }
+// }
+
+// Show all posts or only current user's posts
+async function showAllPosts(userId = null) {
     try {
-        const response = await fetch("http://localhost:8080/api/posts");
+        let url = "http://localhost:8080/api/posts";
+        if (userId !== null) {
+            url += `?user_id=${userId}`;
+        }
+
+        const response = await fetch(url);
         const data = await response.json();
 
         if (!response.ok) {
@@ -223,7 +474,6 @@ async function showAllPosts() {
             return;
         }
 
-        //  <div class="post" onclick="showPostDetails(${post.id})" style="cursor:pointer;">
         let postHTML = posts.map(post => `
             <div class="post" data-post-id="${post.id}" style="cursor:pointer;">
                 <h3>${post.title}</h3>
@@ -247,7 +497,6 @@ async function showAllPosts() {
                         <span id="dislikes-${post.id}">${post.dislikes_count}</span>
                     </button>
                 </div>
-
             </div>
         `).join("");
 
@@ -255,38 +504,38 @@ async function showAllPosts() {
 
         // Attach reaction buttons
         document.querySelectorAll(".like-button, .dislike-button").forEach(btn => {
-        btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const postId = parseInt(btn.getAttribute("data-post-id"));
-            const type = btn.getAttribute("data-type");
-            reactToPost(postId, type);
-        });
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const postId = parseInt(btn.getAttribute("data-post-id"));
+                const type = btn.getAttribute("data-type");
+                reactToPost(postId, type);
+            });
         });
 
-        // Attach post detail navigation
+        // Attach click to open post detail
         document.querySelectorAll(".post").forEach(postDiv => {
-        postDiv.addEventListener("click", (e) => {
-            const postId = postDiv.getAttribute("data-post-id");
-            const tag = e.target.tagName.toLowerCase();
-            const classList = e.target.classList;
+            postDiv.addEventListener("click", (e) => {
+                const postId = postDiv.getAttribute("data-post-id");
+                const tag = e.target.tagName.toLowerCase();
+                const classList = e.target.classList;
 
-            if (
-            !classList.contains("like-button") &&
-            !classList.contains("dislike-button") &&
-            tag !== "img" &&
-            tag !== "span"
-            ) {
-            showPostDetails(postId);
-            }
+                if (
+                    !classList.contains("like-button") &&
+                    !classList.contains("dislike-button") &&
+                    tag !== "img" &&
+                    tag !== "span"
+                ) {
+                    showPostDetails(postId);
+                }
+            });
         });
-    });  
 
     } catch (error) {
         console.error("Error loading posts:", error);
     }
 }
 
-window.showFilterPage = function() {
+window.showFilterPage = function () {
     const app = document.getElementById("app");
     app.innerHTML = `
         <div class="container">
@@ -294,10 +543,12 @@ window.showFilterPage = function() {
             <select id="categoryFilter" multiple style="width: 100%; padding: 10px; margin-bottom: 10px;"></select>
             <button onclick="filterPosts()">Apply Filter</button>
             <button onclick="backToHome()">Back to Home</button>
+            <div id="filtered-posts-container" style="margin-top: 20px;"></div>
         </div>
     `;
-    loadCategories(); 
+    loadCategories();
 };
+
 
 // Navigate back to home page
 window.backToHome = function() {
@@ -326,5 +577,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 window.showCreatePost = showCreatePost;
 window.showAllPosts = showAllPosts;
+window.renderPosts = renderPosts;
 
 

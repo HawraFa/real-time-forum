@@ -374,76 +374,111 @@ http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Re
 	}))
 	
 
+	// http.HandleFunc("/api/posts", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+	// 	w.Header().Set("Content-Type", "application/json")
+	// 	posts, err := database.QueryPosts(db, nil)
+	// 	if err != nil {
+	// 		log.Printf("QueryPosts failed: %v", err)
+	// 		w.WriteHeader(http.StatusInternalServerError)
+	// 		json.NewEncoder(w).Encode(map[string]string{
+	// 			"error": fmt.Sprintf("Failed to fetch posts: %v", err),
+	// 		})
+	// 		return
+	// 	}
+	// 	if posts == nil {
+	// 		log.Println("QueryPosts returned nil — setting to empty list")
+	// 		posts = []database.Post{}
+	// 	}
+	// 	log.Printf("Returning %d posts", len(posts))
+	// 	json.NewEncoder(w).Encode(posts)
+	// }))
+
+	// http.HandleFunc("/api/comments", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+	// 	w.Header().Set("Content-Type", "application/json")
+
+	// 	if r.Method == http.MethodGet {
+	// 		postIDStr := r.URL.Query().Get("post_id")
+	// 		log.Println("Reached /api/comments handler")
+	// 		log.Println("Query param post_id =", postIDStr)
+
+	// 		if postIDStr == "" {
+	// 			http.Error(w, `{"error": "Missing post_id"}`, http.StatusBadRequest)
+	// 			return
+	// 		}
+
+	// 		var postID int
+	// 		fmt.Sscanf(postIDStr, "%d", &postID)
+
+	// 		comments, err := database.QueryComments(db, &postID)
+	// 		if err != nil {
+	// 			log.Printf("Failed to fetch comments: %v", err)
+	// 			http.Error(w, `{"error": "Failed to fetch comments"}`, http.StatusInternalServerError)
+	// 			return
+	// 		}
+
+	// 		log.Printf("Returning %d comments", len(comments))
+	// 		json.NewEncoder(w).Encode(comments)
+	// 		return
+	// 	}
+
+	// 	if r.Method == http.MethodPost {
+	// 		var req struct {
+	// 			UserID  int    `json:"user_id"`
+	// 			PostID  int    `json:"post_id"`
+	// 			Content string `json:"content"`
+	// 		}
+	// 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	// 			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+	// 			return
+	// 		}
+
+	// 		err := database.InsertComment(db, req.PostID, req.UserID, req.Content)
+	// 		if err != nil {
+	// 			http.Error(w, `{"error": "Failed to insert comment"}`, http.StatusInternalServerError)
+	// 			return
+	// 		}
+
+	// 		json.NewEncoder(w).Encode(map[string]string{"message": "Comment added"})
+	// 		return
+	// 	}
+
+	// 	http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+	// }))
+
 	http.HandleFunc("/api/posts", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		posts, err := database.QueryPosts(db, nil)
+	
+		// Check if user_id is provided in the query
+		var userID *int
+		if userIDStr := r.URL.Query().Get("user_id"); userIDStr != "" {
+			if id, err := strconv.Atoi(userIDStr); err == nil {
+				userID = &id
+			} else {
+				http.Error(w, `{"error": "Invalid user_id"}`, http.StatusBadRequest)
+				return
+			}
+		}
+	
+		// Pass userID to QueryPosts
+		posts, err := database.QueryPosts(db, userID)
 		if err != nil {
-			log.Printf("❌ QueryPosts failed: %v", err)
+			log.Printf("QueryPosts failed: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{
 				"error": fmt.Sprintf("Failed to fetch posts: %v", err),
 			})
 			return
 		}
+	
 		if posts == nil {
 			log.Println("QueryPosts returned nil — setting to empty list")
 			posts = []database.Post{}
 		}
+	
 		log.Printf("Returning %d posts", len(posts))
 		json.NewEncoder(w).Encode(posts)
 	}))
-
-	http.HandleFunc("/api/comments", enableCORS(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
-		if r.Method == http.MethodGet {
-			postIDStr := r.URL.Query().Get("post_id")
-			log.Println("✅ Reached /api/comments handler")
-			log.Println("Query param post_id =", postIDStr)
-
-			if postIDStr == "" {
-				http.Error(w, `{"error": "Missing post_id"}`, http.StatusBadRequest)
-				return
-			}
-
-			var postID int
-			fmt.Sscanf(postIDStr, "%d", &postID)
-
-			comments, err := database.QueryComments(db, &postID)
-			if err != nil {
-				log.Printf("❌ Failed to fetch comments: %v", err)
-				http.Error(w, `{"error": "Failed to fetch comments"}`, http.StatusInternalServerError)
-				return
-			}
-
-			log.Printf("✅ Returning %d comments", len(comments))
-			json.NewEncoder(w).Encode(comments)
-			return
-		}
-
-		if r.Method == http.MethodPost {
-			var req struct {
-				UserID  int    `json:"user_id"`
-				PostID  int    `json:"post_id"`
-				Content string `json:"content"`
-			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
-				return
-			}
-
-			err := database.InsertComment(db, req.PostID, req.UserID, req.Content)
-			if err != nil {
-				http.Error(w, `{"error": "Failed to insert comment"}`, http.StatusInternalServerError)
-				return
-			}
-
-			json.NewEncoder(w).Encode(map[string]string{"message": "Comment added"})
-			return
-		}
-
-		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
-	}))
+	
 
 	http.HandleFunc("/api/posts/", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -461,7 +496,7 @@ http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Re
 	
 		post, err := database.QueryPostDetails(database.DB, postID)
 		if err != nil {
-			log.Printf("❌ Failed to fetch post: %v", err)
+			log.Printf("Failed to fetch post: %v", err)
 			http.Error(w, `{"error": "Post not found"}`, http.StatusNotFound)
 			return
 		}
@@ -604,6 +639,11 @@ http.HandleFunc("/api/posts/filter", enableCORS(func(w http.ResponseWriter, r *h
 		http.Error(w, `{"error": "Failed to filter posts"}`, http.StatusInternalServerError)
 		return
 	}
+
+	if posts == nil {
+		posts = []database.Post{}
+	}
+	
 	json.NewEncoder(w).Encode(posts)
 }))
 

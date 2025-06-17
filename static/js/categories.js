@@ -1,3 +1,5 @@
+import { renderPosts } from './home.js';
+
 // Load categories into the filter dropdown (run this on page load)
 async function loadCategories() {
   try {
@@ -24,96 +26,30 @@ async function loadCategories() {
   }
 }
 
-// Trigger filtering when button is clicked
-async function filterPosts() {
-  const selected = Array.from(document.getElementById("categoryFilter").selectedOptions)
-    .map(opt => opt.value)
-    .join(",");
+export async function filterPosts() {
+    const selectedOptions = Array.from(document.getElementById("categoryFilter").selectedOptions);
+    const selectedCategories = selectedOptions.map(opt => opt.value);
 
-  if (!selected) {
-    alert("Select at least one category.");
-    return;
-  }
+    const container = document.getElementById("filtered-posts-container");
+    container.innerHTML = "Loading...";
 
-  try {
-    const response = await fetch(`/api/posts/filter?categories=${selected}`);
-    const posts = await response.json();
-    renderPosts(posts); // Make sure renderPosts() is defined in your main JS
-  } catch (error) {
-    console.error("Failed to fetch filtered posts:", error);
-  }
-}
+    if (selectedCategories.length === 0) {
+        container.innerHTML = "<p>Please select at least one category.</p>";
+        return;
+    }
 
-// Shared renderer: Render posts and display them on the page
-function renderPosts(posts) {
-  const app = document.getElementById("app");
-
-  if (!Array.isArray(posts) || posts.length === 0) {
-    app.innerHTML = "<p>No posts found for selected categories.</p>";
-    return;
-  }
-
-  let postHTML = posts.map(post => {
-    const categoriesHTML = (post.categories || [])
-      .map(cat => `<span class="category-tag">${cat.name}</span>`)
-      .join(" ");
-
-    return `
-      <div class="post">
-        <h3>${post.title}</h3>
-        <p>${post.content}</p>
-        
-        <div class="post-footer">
-          <img src="${post.avatar || '/static/images/profile.png'}" 
-              class="avatar-icon" 
-              style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
-          <small>
-            <strong>${post.username}</strong> — ${new Date(post.created_at).toLocaleString()}
-          </small>
-        </div>
-
-        <div class="post-categories">
-          ${categoriesHTML}
-        </div>
-
-        <div class="reactions">
-          <button onclick="reactToPost(${post.id}, 'like')">👍 <span id="likes-${post.id}">${post.likes_count}</span></button>
-          <button onclick="reactToPost(${post.id}, 'dislike')">👎 <span id="dislikes-${post.id}">${post.dislikes_count}</span></button>
-        </div>
-
-        <div class="comments-section">
-          <div id="comments-for-${post.id}"></div>
-          <form onsubmit="submitComment(event, ${post.id})">
-            <input id="comment-input-${post.id}" type="text" placeholder="Write a comment..." required>
-            <button type="submit">Send</button>
-          </form>
-        </div>
-
-        <hr>
-      </div>
-    `;
-  }).join("");
-
-  app.innerHTML = `
-    <div class="container">
-      <h2>Filtered Posts</h2>
-      ${postHTML}
-      <button onclick="backToHome()">Back to Home</button>
-    </div>
-  `;
-
-  // Load comments dynamically after rendering
-  setTimeout(() => {
-    posts.forEach(post => {
-      const el = document.getElementById(`comments-for-${post.id}`);
-      if (el) loadComments(post.id);
-    });
-  }, 100);
+    try {
+        const res = await fetch(`http://localhost:8080/api/posts/filter?categories=${selectedCategories.join(",")}`);
+        const posts = await res.json();
+        renderPosts(posts, "filtered-posts-container");
+    } catch (err) {
+        console.error("❌ Failed to fetch filtered posts:", err);
+        container.innerHTML = "<p>⚠️ Error loading filtered posts.</p>";
+    }
 }
 
 
 // Make sure this is globally accessible if needed
-window.renderPosts = renderPosts;
 window.loadCategories = loadCategories;
 window.filterPosts = filterPosts;
 
