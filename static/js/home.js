@@ -72,17 +72,70 @@ export async function showHomePage(user) {
             alert("You must be logged in to view your posts.");
             return;
         }
-    
-        const response = await fetch(`/api/posts?user_id=${currentUser.id}`);
+
+        const app = document.getElementById("app");
+        app.innerHTML = `
+            <nav class="navbar">
+                <div class="nav-left">
+                    <h1>Forum</h1>
+                </div>
+                <div class="nav-right">
+                    <button class="theme-toggle" onclick="toggleTheme()">
+                        <svg viewBox="0 0 24 24" width="24" height="24">
+                            <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>
+                        </svg>
+                    </button>
+                    <div class="profile-menu" onclick="toggleProfileMenu(event)">
+                        <img src="${currentUser.avatar || '/static/images/profile.png'}" alt="Profile" class="profile-icon">
+                        <span>${currentUser.username}
+                        <div class="profile-dropdown" id="profileDropdown">
+                            <a href="#" onclick="showProfile()">My Profile</a>
+                            <a href="#" onclick="handleLogout()">Logout</a>
+                        </div>
+                    </div>
+                    <img src="/static/images/chat.png" alt="Forum Icon" class="nav-icon">
+                </div>
+            </nav>
+
+            <!-- Chat Sidebar -->
+            <div class="chat-sidebar">
+                <div class="chat-sidebar-header">
+                    <h2>Messages</h2>
+                </div>
+                <div class="chat-users-container">
+                    <ul id="chat-user-list" class="chat-user-list"></ul>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="main-content" style="margin-left: 280px; padding: 20px;">
+                <div class="container">
+                    <h2>My Posts</h2>
+                    <div id="posts-container"></div>
+                    <button onclick="backToHome()" class="back-button" style="margin-top: 20px;">
+                        <i class="fas fa-arrow-left"></i> Back to Home
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Initialize ChatManager if not already initialized
+        if (!window.chatManager) {
+            window.chatManager = new ChatManager();
+        } else {
+            window.chatManager.loadAllUsers(); // Reload user list
+        }
+
+        const response = await fetch(`http://localhost:8080/api/posts?user_id=${currentUser.id}`);
         const data = await response.json();
-    
+
         const postsContainer = document.getElementById("posts-container");
         if (!Array.isArray(data) || data.length === 0) {
             postsContainer.innerHTML = "<p>No posts found.</p>";
             return;
         }
-    
-        renderPosts(data); 
+
+        renderPosts(data);
     });
     
     // Show all posts
@@ -265,7 +318,7 @@ window.showMyPosts = async function () {
         if (!postsContainer) return;
 
         if (!posts.length) {
-            postsContainer.innerHTML = "<p>You haven’t posted anything yet.</p>";
+            postsContainer.innerHTML = "<p>You haven't posted anything yet.</p>";
             return;
         }
 
@@ -325,7 +378,7 @@ window.showMyPosts = async function () {
     }
 };
 
-// Handle post creation (merged, friend’s version uses consistent naming and parseInt for IDs)
+// Handle post creation (merged, friend's version uses consistent naming and parseInt for IDs)
 async function handleCreatePost(event) {
     event.preventDefault();
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
@@ -357,93 +410,6 @@ async function handleCreatePost(event) {
         alert(error.message);
     }
 }
-
-// Show all posts (friend's detailed version with reactions and comments)
-// async function showAllPosts() {
-//     try {
-//         const response = await fetch("http://localhost:8080/api/posts");
-//         const data = await response.json();
-
-//         if (!response.ok) {
-//             console.error("❌ Server error:", data.error);
-//             return;
-//         }
-
-//         if (!Array.isArray(data)) {
-//             console.warn("❗ Expected array, got:", data);
-//             return;
-//         }
-
-//         const posts = data;
-//         const postsContainer = document.getElementById("posts-container");
-
-//         if (!postsContainer) {
-//             console.error("Posts container not found");
-//             return;
-//         }
-
-//         //  <div class="post" onclick="showPostDetails(${post.id})" style="cursor:pointer;">
-//         let postHTML = posts.map(post => `
-//             <div class="post" data-post-id="${post.id}" style="cursor:pointer;">
-//                 <h3>${post.title}</h3>
-//                 <p>${post.content.substring(0, 100)}...</p>
-//                 <div class="post-footer">
-//                     <img src="${post.avatar || '/static/images/profile.png'}" 
-//                     class="avatar-icon" 
-//                     style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
-//                     <small>
-//                         <strong>${post.username}</strong> — ${new Date(post.created_at).toLocaleString()}
-//                     </small>
-//                 </div>
-
-//                 <div class="reactions">
-//                     <button class="like-button" data-post-id="${post.id}" data-type="like">
-//                         <img src="/static/images/like.png" alt="Like">
-//                         <span id="likes-${post.id}">${post.likes_count}</span>
-//                     </button>
-//                     <button class="dislike-button" data-post-id="${post.id}" data-type="dislike">
-//                         <img src="/static/images/dislike.png" alt="Dislike">
-//                         <span id="dislikes-${post.id}">${post.dislikes_count}</span>
-//                     </button>
-//                 </div>
-
-//             </div>
-//         `).join("");
-
-//         postsContainer.innerHTML = postHTML || "<p>No posts found.</p>";
-
-//         // Attach reaction buttons
-//         document.querySelectorAll(".like-button, .dislike-button").forEach(btn => {
-//         btn.addEventListener("click", (e) => {
-//             e.stopPropagation();
-//             const postId = parseInt(btn.getAttribute("data-post-id"));
-//             const type = btn.getAttribute("data-type");
-//             reactToPost(postId, type);
-//         });
-//         });
-
-//         // Attach post detail navigation
-//         document.querySelectorAll(".post").forEach(postDiv => {
-//         postDiv.addEventListener("click", (e) => {
-//             const postId = postDiv.getAttribute("data-post-id");
-//             const tag = e.target.tagName.toLowerCase();
-//             const classList = e.target.classList;
-
-//             if (
-//             !classList.contains("like-button") &&
-//             !classList.contains("dislike-button") &&
-//             tag !== "img" &&
-//             tag !== "span"
-//             ) {
-//             showPostDetails(postId);
-//             }
-//         });
-//     });  
-
-//     } catch (error) {
-//         console.error("Error loading posts:", error);
-//     }
-// }
 
 // Show all posts or only current user's posts
 async function showAllPosts(userId = null) {
@@ -537,18 +503,73 @@ async function showAllPosts(userId = null) {
 
 window.showFilterPage = function () {
     const app = document.getElementById("app");
+    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
     app.innerHTML = `
-        <div class="container">
-            <h2>Filter Posts by Category</h2>
-            <select id="categoryFilter" multiple style="width: 100%; padding: 10px; margin-bottom: 10px;"></select>
-            <button onclick="filterPosts()">Apply Filter</button>
-            <button onclick="backToHome()">Back to Home</button>
-            <div id="filtered-posts-container" style="margin-top: 20px;"></div>
+        <nav class="navbar">
+            <div class="nav-left">
+                <h1>Forum</h1>
+            </div>
+            <div class="nav-right">
+                <button class="theme-toggle" onclick="toggleTheme()">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>
+                    </svg>
+                </button>
+                <div class="profile-menu" onclick="toggleProfileMenu(event)">
+                    <img src="${currentUser.avatar || '/static/images/profile.png'}" alt="Profile" class="profile-icon">
+                    <span>${currentUser.username}
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <a href="#" onclick="showProfile()">My Profile</a>
+                        <a href="#" onclick="handleLogout()">Logout</a>
+                    </div>
+                </div>
+                <img src="/static/images/chat.png" alt="Forum Icon" class="nav-icon">
+            </div>
+        </nav>
+
+        <!-- Chat Sidebar -->
+        <div class="chat-sidebar">
+            <div class="chat-sidebar-header">
+                <h2>Messages</h2>
+            </div>
+            <div class="chat-users-container">
+                <ul id="chat-user-list" class="chat-user-list"></ul>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content" style="margin-left: 280px; padding: 20px;">
+            <div class="container">
+                <h2>Filter Posts by Category</h2>
+                <div class="filter-controls">
+                    <label class="select-label">Select Categories</label>
+                    <select id="categoryFilter" multiple>
+                        <!-- Categories will be loaded here -->
+                    </select>
+                    <div class="filter-buttons">
+                        <button onclick="filterPosts()" class="primary-button">
+                            <i class="fas fa-filter"></i> Apply Filter
+                        </button>
+                        <button onclick="backToHome()" class="secondary-button">
+                            <i class="fas fa-arrow-left"></i> Back to Home
+                        </button>
+                    </div>
+                </div>
+                <div id="filtered-posts-container"></div>
+            </div>
         </div>
     `;
+
+    // Initialize ChatManager if not already initialized
+    if (!window.chatManager) {
+        window.chatManager = new ChatManager();
+    } else {
+        window.chatManager.loadAllUsers(); // Reload user list
+    }
+
     loadCategories();
 };
-
 
 // Navigate back to home page
 window.backToHome = function() {

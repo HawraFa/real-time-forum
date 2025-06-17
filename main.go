@@ -201,55 +201,54 @@ func main() {
 		// w.Header().Set("Cache-Control", "max-age=60") // Cache for 1 minute
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 
-
 		json.NewEncoder(w).Encode(users)
 	}))
 
-http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "application/json")
+	http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 
-    // Extract user ID from URL
-    idStr := strings.TrimPrefix(r.URL.Path, "/api/users/")
-    userID, err := strconv.Atoi(idStr)
-    if err != nil {
-        http.Error(w, `{"error": "Invalid user ID"}`, http.StatusBadRequest)
-        return
-    }
+		// Extract user ID from URL
+		idStr := strings.TrimPrefix(r.URL.Path, "/api/users/")
+		userID, err := strconv.Atoi(idStr)
+		if err != nil {
+			http.Error(w, `{"error": "Invalid user ID"}`, http.StatusBadRequest)
+			return
+		}
 
-    // Get user from database
-    var user database.User
-    err = db.QueryRow(`
-        SELECT id, username, first_name, last_name, email, avatar, gender, age 
-        FROM Users 
-        WHERE id = ?
-    `, userID).Scan(
-        &user.ID, &user.Username, &user.FirstName, &user.LastName,
-        &user.Email, &user.Avatar, &user.Gender, &user.Age,
-    )
+		// Get user from database
+		var user database.User
+		err = db.QueryRow(`
+			SELECT id, username, first_name, last_name, email, avatar, gender, age 
+			FROM Users 
+			WHERE id = ?
+		`, userID).Scan(
+			&user.ID, &user.Username, &user.FirstName, &user.LastName,
+			&user.Email, &user.Avatar, &user.Gender, &user.Age,
+		)
 
-    if err != nil {
-        if err == sql.ErrNoRows {
-            http.Error(w, `{"error": "User not found"}`, http.StatusNotFound)
-        } else {
-            log.Printf("Database error: %v", err)
-            http.Error(w, `{"error": "Database error"}`, http.StatusInternalServerError)
-        }
-        return
-    }
+		if err != nil {
+			if err == sql.ErrNoRows {
+				http.Error(w, `{"error": "User not found"}`, http.StatusNotFound)
+			} else {
+				log.Printf("Database error: %v", err)
+				http.Error(w, `{"error": "Database error"}`, http.StatusInternalServerError)
+			}
+			return
+		}
 
-    // Get online status from in-memory manager
-    statusManager := websocket.GetStatusManager()
-    if status, exists := statusManager.GetUser(int64(userID)); exists {
-        user.IsOnline = status.IsOnline
-    } else {
-        user.IsOnline = false
-    }
+		// Get online status from in-memory manager
+		statusManager := websocket.GetStatusManager()
+		if status, exists := statusManager.GetUser(int64(userID)); exists {
+			user.IsOnline = status.IsOnline
+		} else {
+			user.IsOnline = false
+		}
 
-    // Cache control
-    w.Header().Set("Cache-Control", "max-age=120") // Cache for 2 minutes
+		// Cache control
+		w.Header().Set("Cache-Control", "max-age=120") // Cache for 2 minutes
 
-    json.NewEncoder(w).Encode(user)
-}))
+		json.NewEncoder(w).Encode(user)
+	}))
 
 	http.HandleFunc("/api/profile/update", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -325,7 +324,6 @@ http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Re
 		json.NewEncoder(w).Encode(categories)
 	}))
 
-	
 	// API handler for creating a post
 	http.HandleFunc("/api/posts/create", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -372,82 +370,10 @@ http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Re
 			"post_id": postID,
 		})
 	}))
-	
-
-	// http.HandleFunc("/api/posts", enableCORS(func(w http.ResponseWriter, r *http.Request) {
-	// 	w.Header().Set("Content-Type", "application/json")
-	// 	posts, err := database.QueryPosts(db, nil)
-	// 	if err != nil {
-	// 		log.Printf("QueryPosts failed: %v", err)
-	// 		w.WriteHeader(http.StatusInternalServerError)
-	// 		json.NewEncoder(w).Encode(map[string]string{
-	// 			"error": fmt.Sprintf("Failed to fetch posts: %v", err),
-	// 		})
-	// 		return
-	// 	}
-	// 	if posts == nil {
-	// 		log.Println("QueryPosts returned nil — setting to empty list")
-	// 		posts = []database.Post{}
-	// 	}
-	// 	log.Printf("Returning %d posts", len(posts))
-	// 	json.NewEncoder(w).Encode(posts)
-	// }))
-
-	// http.HandleFunc("/api/comments", enableCORS(func(w http.ResponseWriter, r *http.Request) {
-	// 	w.Header().Set("Content-Type", "application/json")
-
-	// 	if r.Method == http.MethodGet {
-	// 		postIDStr := r.URL.Query().Get("post_id")
-	// 		log.Println("Reached /api/comments handler")
-	// 		log.Println("Query param post_id =", postIDStr)
-
-	// 		if postIDStr == "" {
-	// 			http.Error(w, `{"error": "Missing post_id"}`, http.StatusBadRequest)
-	// 			return
-	// 		}
-
-	// 		var postID int
-	// 		fmt.Sscanf(postIDStr, "%d", &postID)
-
-	// 		comments, err := database.QueryComments(db, &postID)
-	// 		if err != nil {
-	// 			log.Printf("Failed to fetch comments: %v", err)
-	// 			http.Error(w, `{"error": "Failed to fetch comments"}`, http.StatusInternalServerError)
-	// 			return
-	// 		}
-
-	// 		log.Printf("Returning %d comments", len(comments))
-	// 		json.NewEncoder(w).Encode(comments)
-	// 		return
-	// 	}
-
-	// 	if r.Method == http.MethodPost {
-	// 		var req struct {
-	// 			UserID  int    `json:"user_id"`
-	// 			PostID  int    `json:"post_id"`
-	// 			Content string `json:"content"`
-	// 		}
-	// 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-	// 			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
-	// 			return
-	// 		}
-
-	// 		err := database.InsertComment(db, req.PostID, req.UserID, req.Content)
-	// 		if err != nil {
-	// 			http.Error(w, `{"error": "Failed to insert comment"}`, http.StatusInternalServerError)
-	// 			return
-	// 		}
-
-	// 		json.NewEncoder(w).Encode(map[string]string{"message": "Comment added"})
-	// 		return
-	// 	}
-
-	// 	http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
-	// }))
 
 	http.HandleFunc("/api/posts", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-	
+
 		// Check if user_id is provided in the query
 		var userID *int
 		if userIDStr := r.URL.Query().Get("user_id"); userIDStr != "" {
@@ -458,7 +384,7 @@ http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Re
 				return
 			}
 		}
-	
+
 		// Pass userID to QueryPosts
 		posts, err := database.QueryPosts(db, userID)
 		if err != nil {
@@ -469,16 +395,15 @@ http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Re
 			})
 			return
 		}
-	
+
 		if posts == nil {
 			log.Println("QueryPosts returned nil — setting to empty list")
 			posts = []database.Post{}
 		}
-	
+
 		log.Printf("Returning %d posts", len(posts))
 		json.NewEncoder(w).Encode(posts)
 	}))
-	
 
 	http.HandleFunc("/api/posts/", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -486,24 +411,23 @@ http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Re
 			http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
-	
+
 		idStr := strings.TrimPrefix(r.URL.Path, "/api/posts/")
 		postID, err := strconv.Atoi(idStr)
 		if err != nil {
 			http.Error(w, `{"error": "Invalid post ID"}`, http.StatusBadRequest)
 			return
 		}
-	
+
 		post, err := database.QueryPostDetails(database.DB, postID)
 		if err != nil {
 			log.Printf("Failed to fetch post: %v", err)
 			http.Error(w, `{"error": "Post not found"}`, http.StatusNotFound)
 			return
 		}
-	
+
 		json.NewEncoder(w).Encode(post)
 	}))
-	
 
 	http.HandleFunc("/api/react", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -555,7 +479,7 @@ http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Re
 	// 🔁 NEW: Chat History API
 	http.HandleFunc("/api/chat/history", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		// Debugging - log all incoming requests
 		log.Printf("🔍 Chat history request: %s %s", r.Method, r.URL.String())
 
@@ -564,37 +488,37 @@ http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Re
 
 		currentUserID, err := session.GetUserIDFromSession(r)
 		if err != nil {
-				log.Println("❌ Unauthorized chat history request")
-				http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)
-				return
+			log.Println("❌ Unauthorized chat history request")
+			http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)
+			return
 		}
 
 		log.Printf("Current User ID: %d", currentUserID)
 
 		otherUserID, err := strconv.Atoi(userID)
 		if err != nil {
-				log.Println("❌ Invalid user_id parameter:", userID)
-				http.Error(w, `{"error": "Invalid user_id"}`, http.StatusBadRequest)
-				return
+			log.Println("❌ Invalid user_id parameter:", userID)
+			http.Error(w, `{"error": "Invalid user_id"}`, http.StatusBadRequest)
+			return
 		}
 
 		offset, _ := strconv.Atoi(offsetStr)
 		if offset < 0 {
-				offset = 0
+			offset = 0
 		}
 
-		log.Printf("🔍 Fetching chat history between %d and %d (offset: %d)", 
-				currentUserID, otherUserID, offset)
-		
+		log.Printf("🔍 Fetching chat history between %d and %d (offset: %d)",
+			currentUserID, otherUserID, offset)
+
 		messages, err := database.GetUserMessages(db, int64(currentUserID), int64(otherUserID), offset)
 		if err != nil {
-				log.Println("❌ GetUserMessages failed:", err)
-				http.Error(w, `{"error": "Failed to load messages"}`, http.StatusInternalServerError)
-				return
+			log.Println("❌ GetUserMessages failed:", err)
+			http.Error(w, `{"error": "Failed to load messages"}`, http.StatusInternalServerError)
+			return
 		}
 
 		if messages == nil {
-				messages = []database.PrivateMessage{} // Ensure we never return null
+			messages = []database.PrivateMessage{} // Ensure we never return null
 		}
 
 		log.Printf("✅ Returning %d messages", len(messages))
@@ -602,50 +526,101 @@ http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Re
 	}))
 
 	http.HandleFunc("/api/chat/last-interactions", enableCORS(func(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json")
 
-    currentUserID, err := session.GetUserIDFromSession(r)
-    if err != nil {
-        http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
-        return
-    }
-
-    interactions, err := database.GetUserChats(db, int64(currentUserID))
-    if err != nil {
-        http.Error(w, `{"error": "Failed to load interactions"}`, http.StatusInternalServerError)
-        return
-    }
-
-    json.NewEncoder(w).Encode(interactions)
-}))
-
-
-http.HandleFunc("/api/posts/filter", enableCORS(func(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	categoriesParam := r.URL.Query().Get("categories")
-	if categoriesParam == "" {
-		http.Error(w, `{"error": "Missing categories param"}`, http.StatusBadRequest)
-		return
-	}
-	parts := strings.Split(categoriesParam, ",")
-	var categoryIDs []int
-	for _, p := range parts {
-		if id, err := strconv.Atoi(strings.TrimSpace(p)); err == nil {
-			categoryIDs = append(categoryIDs, id)
+		currentUserID, err := session.GetUserIDFromSession(r)
+		if err != nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
 		}
-	}
-	posts, err := database.FilterPostsByMultipleCategories(db, categoryIDs)
-	if err != nil {
-		http.Error(w, `{"error": "Failed to filter posts"}`, http.StatusInternalServerError)
-		return
-	}
 
-	if posts == nil {
-		posts = []database.Post{}
-	}
-	
-	json.NewEncoder(w).Encode(posts)
-}))
+		interactions, err := database.GetUserChats(db, int64(currentUserID))
+		if err != nil {
+			http.Error(w, `{"error": "Failed to load interactions"}`, http.StatusInternalServerError)
+			return
+		}
+
+		json.NewEncoder(w).Encode(interactions)
+	}))
+
+	http.HandleFunc("/api/posts/filter", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		categoriesParam := r.URL.Query().Get("categories")
+		if categoriesParam == "" {
+			http.Error(w, `{"error": "Missing categories param"}`, http.StatusBadRequest)
+			return
+		}
+		parts := strings.Split(categoriesParam, ",")
+		var categoryIDs []int
+		for _, p := range parts {
+			if id, err := strconv.Atoi(strings.TrimSpace(p)); err == nil {
+				categoryIDs = append(categoryIDs, id)
+			}
+		}
+		posts, err := database.FilterPostsByMultipleCategories(db, categoryIDs)
+		if err != nil {
+			http.Error(w, `{"error": "Failed to filter posts"}`, http.StatusInternalServerError)
+			return
+		}
+
+		if posts == nil {
+			posts = []database.Post{}
+		}
+
+		json.NewEncoder(w).Encode(posts)
+	}))
+
+	http.HandleFunc("/api/comments", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if r.Method == http.MethodGet {
+			postIDStr := r.URL.Query().Get("post_id")
+			log.Println("Reached /api/comments handler")
+			log.Println("Query param post_id =", postIDStr)
+
+			if postIDStr == "" {
+				http.Error(w, `{"error": "Missing post_id"}`, http.StatusBadRequest)
+				return
+			}
+
+			var postID int
+			fmt.Sscanf(postIDStr, "%d", &postID)
+
+			comments, err := database.QueryComments(db, &postID)
+			if err != nil {
+				log.Printf("Failed to fetch comments: %v", err)
+				http.Error(w, `{"error": "Failed to fetch comments"}`, http.StatusInternalServerError)
+				return
+			}
+
+			log.Printf("Returning %d comments", len(comments))
+			json.NewEncoder(w).Encode(comments)
+			return
+		}
+
+		if r.Method == http.MethodPost {
+			var req struct {
+				UserID  int    `json:"user_id"`
+				PostID  int    `json:"post_id"`
+				Content string `json:"content"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+				return
+			}
+
+			err := database.InsertComment(db, req.PostID, req.UserID, req.Content)
+			if err != nil {
+				http.Error(w, `{"error": "Failed to insert comment"}`, http.StatusInternalServerError)
+				return
+			}
+
+			json.NewEncoder(w).Encode(map[string]string{"message": "Comment added"})
+			return
+		}
+
+		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+	}))
 
 	log.Println("Server started at http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))

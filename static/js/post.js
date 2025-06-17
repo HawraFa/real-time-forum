@@ -14,32 +14,75 @@ export async function showPostDetails(postId) {
     const avatarSrc = post.avatar ? post.avatar : "static/images/profile.png";
 
     app.innerHTML = `
-      <div class="post-detail">
-          <img src="${avatarSrc}" alt="${post.username}'s avatar" class="avatar" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover;">
-          <h2>${post.title}</h2>
-          <p>${post.content}</p>
+        <nav class="navbar">
+            <div class="nav-left">
+                <h1>Forum</h1>
+            </div>
+            <div class="nav-right">
+                <button class="theme-toggle" onclick="toggleTheme()">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>
+                    </svg>
+                </button>
+                <div class="profile-menu" onclick="toggleProfileMenu(event)">
+                    <img src="${currentUser.avatar || '/static/images/profile.png'}" alt="Profile" class="profile-icon">
+                    <span>${currentUser.username}</span>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <a href="#" onclick="showProfile()">My Profile</a>
+                        <a href="#" onclick="handleLogout()">Logout</a>
+                    </div>
+                </div>
+                <img src="/static/images/chat.png" alt="Forum Icon" class="nav-icon">
+            </div>
+        </nav>
 
-          <div><strong>By:</strong> ${post.username}</div>
-          <div><strong>Date:</strong> ${new Date(post.created_at).toLocaleString()}</div>
-          <div class="reactions">
-            <button id="like-btn-${post.id}">
-              <img src="/static/images/like.png" alt="Like" style="width: 16px; height: 16px;" />
-              <span id="likes-${post.id}">${post.likes_count}</span>
-            </button>
-            <button id="dislike-btn-${post.id}">
-              <img src="/static/images/dislike.png" alt="Dislike" style="width: 16px; height: 16px;" />
-              <span id="dislikes-${post.id}">${post.dislikes_count}</span>
-            </button>
-          </div>
+        <!-- Chat Sidebar -->
+        <div class="chat-sidebar">
+            <div class="chat-sidebar-header">
+                <h2>Messages</h2>
+            </div>
+            <div class="chat-users-container">
+                <ul id="chat-user-list" class="chat-user-list"></ul>
+            </div>
+        </div>
 
-          <div id="comments-for-${post.id}"></div>
-          <form onsubmit="submitComment(event, ${post.id})">
-              <input id="comment-input-${post.id}" type="text" placeholder="Write a comment...">
-              <button type="submit">Send</button>
-          </form>
-          <br/>
-          <button onclick="backToHome()">← Back to Home</button>
-      </div>
+        <!-- Main Content Area -->
+        <div class="main-content" style="margin-left: 280px; padding: 20px;">
+            <div class="post-detail">
+                <img src="${avatarSrc}" alt="${post.username}'s avatar" class="avatar">
+                <h2>${post.title}</h2>
+                <p>${post.content}</p>
+
+                <div class="post-meta">
+                    <div><strong>By:</strong> ${post.username}</div>
+                    <div><strong>Date:</strong> ${new Date(post.created_at).toLocaleString()}</div>
+                </div>
+
+                <div class="reactions">
+                    <button id="like-btn-${post.id}">
+                        <img src="/static/images/like.png" alt="Like" style="width: 16px; height: 16px;" />
+                        <span id="likes-${post.id}">${post.likes_count}</span>
+                    </button>
+                    <button id="dislike-btn-${post.id}">
+                        <img src="/static/images/dislike.png" alt="Dislike" style="width: 16px; height: 16px;" />
+                        <span id="dislikes-${post.id}">${post.dislikes_count}</span>
+                    </button>
+                </div>
+
+                <div class="comments-section">
+                    <h3>Comments</h3>
+                    <div id="comments-for-${post.id}"></div>
+                    <form onsubmit="submitComment(event, ${post.id})" class="comment-form">
+                        <input id="comment-input-${post.id}" type="text" placeholder="Write a comment...">
+                        <button type="submit">Send Comment</button>
+                    </form>
+                </div>
+
+                <button onclick="backToHome()" class="back-button" style="margin-top: 2rem;">
+                    <i class="fas fa-arrow-left"></i> Back to Home
+                </button>
+            </div>
+        </div>
     `;
 
     // ✅ Wire the like/dislike buttons safely (avoiding onclick global issues)
@@ -54,6 +97,13 @@ export async function showPostDetails(postId) {
     });
 
     loadComments(post.id);
+
+    // Initialize ChatManager if not already initialized
+    if (!window.chatManager) {
+        window.chatManager = new ChatManager();
+    } else {
+        window.chatManager.loadAllUsers(); // Reload user list
+    }
 
   } catch (error) {
     console.error("Error loading post:", error);
