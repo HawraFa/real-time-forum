@@ -1,0 +1,392 @@
+/* Post Styles */
+.post {
+    background: var(--surface-color);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
+    overflow: hidden;
+}
+
+.post::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--primary-color);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.post:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.post:hover::before {
+    opacity: 1;
+}
+
+.post h3 {
+    color: var(--text-color);
+    font-size: 1.3rem;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+}
+
+.post p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 1rem;
+    font-size: 1rem;
+}
+
+.post-footer {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1.5rem 0;
+    padding: 1rem 0;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.post-footer .avatar-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--primary-color);
+}
+
+.post-footer small {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.post-footer strong {
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+/* Post Actions */
+.post-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.post-actions button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius);
+    background: var(--background-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    min-width: 100px;
+    justify-content: center;
+}
+
+.post-actions button:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.post-actions button.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.post-actions button i {
+    font-size: 1.1rem;
+}
+
+/* Reactions Section */
+.reactions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    justify-content: center;
+    align-items: center;
+}
+
+.like-button,
+.dislike-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: none;
+    background: var(--background-color);
+    color: var(--text-secondary);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    min-width: 100px;
+    justify-content: center;
+}
+
+.like-button:hover,
+.dislike-button:hover {
+    background: var(--surface-color);
+    color: var(--primary-color);
+    transform: translateY(-1px);
+}
+
+.like-button.active {
+    color: var(--success-color);
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.dislike-button.active {
+    color: var(--danger-color);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.like-button img,
+.dislike-button img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    transition: transform 0.2s ease;
+}
+
+.like-button:hover img,
+.dislike-button:hover img {
+    transform: scale(1.2);
+}
+
+.like-button.active img,
+.dislike-button.active img {
+    transform: scale(1.2);
+}
+
+/* Comments Section */
+.comments-section {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.comments-section h3 {
+    color: var(--text-color);
+    font-size: 1.4rem;
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+}
+
+.comment {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1.5rem;
+    background: var(--background-color);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s ease;
+}
+
+.comment:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.comment .avatar-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--primary-color);
+}
+
+.comment-content {
+    flex: 1;
+}
+
+.comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.comment-author {
+    font-weight: 600;
+    color: var(--text-color);
+    font-size: 1rem;
+}
+
+.comment-meta {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.comment-text {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    font-size: 1rem;
+}
+
+/* Comment Form */
+.comment-form {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: var(--background-color);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+.comment-form input {
+    width: 100%;
+    padding: 1rem 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--surface-color);
+    color: var(--text-color);
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+}
+
+.comment-form input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
+.comment-form button {
+    padding: 0.75rem 2rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.comment-form button:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.no-comments {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    padding: 2rem;
+    background: var(--background-color);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+/* Posts Container */
+#posts-container {
+    margin-bottom: 6rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Post Detail View */
+.post-detail {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: var(--surface-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+}
+
+.post-detail .avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.post-detail h2 {
+    color: var(--text-color);
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.post-detail p {
+    color: var(--text-secondary);
+    line-height: 1.8;
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+}
+
+.post-detail .post-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--background-color);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+.post-detail .post-meta div {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.post-detail .post-meta strong {
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.post-detail .reactions {
+    margin: 2rem 0;
+    padding: 1rem;
+    background: var(--background-color);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+.post-detail .back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 2rem;
+}
+
+.post-detail .back-button:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
