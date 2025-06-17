@@ -42,6 +42,9 @@ export async function showHomePage(user) {
             <div class="container">
                 <h2 class="welcome-message"> Welcome, ${user.username}!</h2>
                 <div id="posts-container"></div>
+                <button onclick="showFilterPage()" class="filter-post-button" style="margin-bottom: 10px;">
+                    <i class="fas fa-filter"></i> Filter Posts
+                </button>
                 <button onclick="showCreatePost()" class="create-post-button">
                     <i class="fas fa-plus"></i> Create Post
                 </button>
@@ -162,9 +165,8 @@ export async function showCreatePost() {
         window.chatManager.loadAllUsers(); // Reload user list
     }
 }
-window.showCreatePost = showCreatePost;
 
-// Handle post creation (merged, friend's version uses consistent naming and parseInt for IDs)
+// Handle post creation (merged, friend’s version uses consistent naming and parseInt for IDs)
 async function handleCreatePost(event) {
     event.preventDefault();
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
@@ -173,7 +175,7 @@ async function handleCreatePost(event) {
     const postData = {
         title: form.title.value,
         content: form.content.value,
-        category_id: parseInt(form.category.value),
+        category_ids: [parseInt(form.category.value)],
         author_id: parseInt(currentUser.id)
     };
 
@@ -266,7 +268,19 @@ async function showAllPosts() {
         console.error("Error loading posts:", error);
     }
 }
-window.showAllPosts = showAllPosts;
+
+window.showFilterPage = function() {
+    const app = document.getElementById("app");
+    app.innerHTML = `
+        <div class="container">
+            <h2>Filter Posts by Category</h2>
+            <select id="categoryFilter" multiple style="width: 100%; padding: 10px; margin-bottom: 10px;"></select>
+            <button onclick="filterPosts()">Apply Filter</button>
+            <button onclick="backToHome()">Back to Home</button>
+        </div>
+    `;
+    loadCategories(); 
+};
 
 // Navigate back to home page
 window.backToHome = function() {
@@ -293,3 +307,8 @@ document.addEventListener("DOMContentLoaded", () => {
         showHomePage(user);
     }
 });
+
+window.showCreatePost = showCreatePost;
+window.showAllPosts = showAllPosts;
+
+

@@ -29,6 +29,7 @@ type Post struct {
 	Avatar        string    `json:"avatar"`
 	Username      string    `json:"username"`
 	Comments      []Comment `json:"comments"`
+	Categories    []Category `json:"categories"` 
 }
 
 // Category represents a category structure

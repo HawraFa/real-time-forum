@@ -45,6 +45,8 @@ func main() {
 	}
 	defer db.Close()
 
+	database.DB = db
+
 	if err = db.Ping(); err != nil {
 		log.Fatalf("Failed to ping the database: %v", err)
 	}
@@ -323,6 +325,8 @@ http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Re
 		json.NewEncoder(w).Encode(categories)
 	}))
 
+	
+	// API handler for creating a post
 	http.HandleFunc("/api/posts/create", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method != http.MethodPost {
@@ -331,10 +335,10 @@ http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Re
 		}
 
 		var req struct {
-			Title      string `json:"title"`
-			Content    string `json:"content"`
-			CategoryID int    `json:"category_id"`
-			AuthorID   int    `json:"author_id"`
+			Title       string `json:"title"`
+			Content     string `json:"content"`
+			AuthorID    int    `json:"author_id"`
+			CategoryIDs []int  `json:"category_ids"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -342,24 +346,33 @@ http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Re
 			return
 		}
 
-		err := database.InsertPost(db, &req.AuthorID, &req.CategoryID, req.Title, req.Content)
+		if len(req.CategoryIDs) == 0 {
+			http.Error(w, `{"error": "At least one category must be selected"}`, http.StatusBadRequest)
+			return
+		}
+
+		// Insert the post and get the ID
+		postID, err := database.InsertPostAndReturnID(database.DB, &req.AuthorID, &req.CategoryIDs[0], req.Title, req.Content)
 		if err != nil {
+			log.Printf("Failed to insert post: %v", err)
 			http.Error(w, `{"error": "Failed to create post"}`, http.StatusInternalServerError)
 			return
 		}
 
-		rows, _ := db.Query("SELECT id, user_id, title FROM Posts")
-		defer rows.Close()
-		for rows.Next() {
-			var id int
-			var uid int
-			var title string
-			rows.Scan(&id, &uid, &title)
-			fmt.Printf("\U0001F4E6 Post #%d by user_id=%d — Title: %s\n", id, uid, title)
+		// Link each category to the post
+		for _, catID := range req.CategoryIDs {
+			err := database.InsertPostCategory(database.DB, int(postID), catID)
+			if err != nil {
+				log.Printf("Failed to link post to category %d: %v", catID, err)
+			}
 		}
 
-		json.NewEncoder(w).Encode(map[string]string{"message": "Post created successfully"})
+		json.NewEncoder(w).Encode(map[string]any{
+			"success": true,
+			"post_id": postID,
+		})
 	}))
+	
 
 	http.HandleFunc("/api/posts", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -547,37 +560,27 @@ http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Re
 }))
 
 
-	// 🧾 NEW: Mark Messages as Read
-	http.HandleFunc("/api/chat/mark-read", enableCORS(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
-		senderIDStr := r.URL.Query().Get("sender_id")
-		if senderIDStr == "" {
-			http.Error(w, `{"error": "Missing sender_id"}`, http.StatusBadRequest)
-			return
+http.HandleFunc("/api/posts/filter", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	categoriesParam := r.URL.Query().Get("categories")
+	if categoriesParam == "" {
+		http.Error(w, `{"error": "Missing categories param"}`, http.StatusBadRequest)
+		return
+	}
+	parts := strings.Split(categoriesParam, ",")
+	var categoryIDs []int
+	for _, p := range parts {
+		if id, err := strconv.Atoi(strings.TrimSpace(p)); err == nil {
+			categoryIDs = append(categoryIDs, id)
 		}
-
-		senderID, err := strconv.Atoi(senderIDStr)
-		if err != nil {
-			http.Error(w, `{"error": "Invalid sender_id"}`, http.StatusBadRequest)
-			return
-		}
-
-		currentUserID, err := session.GetUserIDFromSession(r)
-		if err != nil {
-			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
-			return
-		}
-
-		err = database.MarkMessagesAsRead(db, int64(senderID), int64(currentUserID))
-		if err != nil {
-			http.Error(w, `{"error": "Failed to mark messages as read"}`, http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]bool{"success": true})
-	}))
+	}
+	posts, err := database.FilterPostsByMultipleCategories(db, categoryIDs)
+	if err != nil {
+		http.Error(w, `{"error": "Failed to filter posts"}`, http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(posts)
+}))
 
 	log.Println("Server started at http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
