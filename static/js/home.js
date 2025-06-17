@@ -1,5 +1,4 @@
 import { ChatManager } from "./chat.js";
-import { loadComments, submitComment } from './comments.js';
 import { reactToPost } from './reactions.js';
 
 export async function showHomePage(user) {
@@ -224,9 +223,9 @@ async function showAllPosts() {
         }
 
         let postHTML = posts.map(post => `
-            <div class="post">
+            <div class="post" onclick="showPostDetails(${post.id})" style="cursor:pointer;">
                 <h3>${post.title}</h3>
-                <p>${post.content}</p>
+                <p>${post.content.substring(0, 100)}...</p>
                 <div class="post-footer">
                     <img src="${post.avatar || '/static/images/profile.png'}" 
                     class="avatar-icon" 
@@ -247,22 +246,10 @@ async function showAllPosts() {
                     </button>
                 </div>
 
-                <div class="comments-section">
-                    <div id="comments-for-${post.id}"></div>
-                    <form onsubmit="submitComment(event, ${post.id})">
-                        <input id="comment-input-${post.id}" type="text" placeholder="Write a comment...">
-                        <button type="submit">Send</button>
-                    </form>
-                </div>
             </div>
         `).join("");
 
         postsContainer.innerHTML = postHTML || "<p>No posts found.</p>";
-
-        // Load comments for each post
-        posts.forEach(post => {
-            loadComments(post.id);
-        });
 
     } catch (error) {
         console.error("Error loading posts:", error);
@@ -288,11 +275,10 @@ window.backToHome = function() {
     showHomePage(currentUser);
 };
 
-// Logout function (you can add your logout logic here)
+// Logout function 
 window.handleLogout = function() {
-    // Clear session/local storage, redirect to login page, etc.
     localStorage.removeItem("currentUser");
-    window.location.href = "/login.html";  // Adjust to your login page path
+    window.location.href = "/login.html";  
 };
 
 // Show user profile (placeholder)

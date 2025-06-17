@@ -36,6 +36,7 @@ export async function loadComments(postId) {
       container.innerHTML = `<p>Error loading comments.</p>`;
   }
 }
+window.loadComments = loadComments;
 
 export async function submitComment(event, postId) {
   console.log("Submitting comment to post:", postId);

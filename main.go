@@ -445,6 +445,31 @@ http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Re
 		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
 	}))
 
+	http.HandleFunc("/api/posts/", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+	
+		idStr := strings.TrimPrefix(r.URL.Path, "/api/posts/")
+		postID, err := strconv.Atoi(idStr)
+		if err != nil {
+			http.Error(w, `{"error": "Invalid post ID"}`, http.StatusBadRequest)
+			return
+		}
+	
+		post, err := database.QueryPostDetails(database.DB, postID)
+		if err != nil {
+			log.Printf("❌ Failed to fetch post: %v", err)
+			http.Error(w, `{"error": "Post not found"}`, http.StatusNotFound)
+			return
+		}
+	
+		json.NewEncoder(w).Encode(post)
+	}))
+	
+
 	http.HandleFunc("/api/react", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method != http.MethodPost {
