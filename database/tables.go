@@ -92,6 +92,18 @@ func CreateTables(db *sql.DB) {
 		FOREIGN KEY (user_id) REFERENCES Users(id)
 	);`
 
+    createChatLastInteractionsTable := `
+    CREATE TABLE IF NOT EXISTS chat_last_interactions (
+        user1_id INTEGER NOT NULL,
+        user2_id INTEGER NOT NULL,
+        last_message_id INTEGER,
+        last_interaction_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user1_id, user2_id),
+        FOREIGN KEY (user1_id) REFERENCES Users(id),
+        FOREIGN KEY (user2_id) REFERENCES Users(id),
+        FOREIGN KEY (last_message_id) REFERENCES PrivateMessages(id)
+    );`
+
 	// Private Messages table
 	createPrivateMessagesTable := `
     CREATE TABLE IF NOT EXISTS PrivateMessages (
@@ -106,7 +118,7 @@ func CreateTables(db *sql.DB) {
     
 
 	// Execute all the CREATE TABLE commands
-	tables := []string{createUsersTable, createCategoriesTable, createPostsTable, createCommentsTable, createReactionsTable, createPostsCategoriesTable, createPrivateMessagesTable, createUserStatusTable}
+	tables := []string{createUsersTable, createCategoriesTable, createPostsTable, createCommentsTable, createReactionsTable, createPostsCategoriesTable, createPrivateMessagesTable, createUserStatusTable, createChatLastInteractionsTable}
 	for _, table := range tables {
 		_, err := db.Exec(table)
 		if err != nil {

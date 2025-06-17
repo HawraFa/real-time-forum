@@ -120,13 +120,15 @@ export async function handleLogin(event) {
 
         localStorage.setItem('currentUser', JSON.stringify(data));
 
-        // Optional ChatManager init if available
+        // Initialize ChatManager and show home page
         showHomePage(data);
-        if (!window.ChatManager && window.chatManager) {
+        if (!window.chatManager) {
             window.chatManager = new ChatManager();
+        } else {
+            // If ChatManager exists, reconnect and send online status
+            window.chatManager.setupWebSocket();
+            window.chatManager.sendStatusUpdate("online");
         }
-
-        
 
     } catch (err) {
         error.textContent = err.message;
@@ -180,7 +182,20 @@ export async function handleRegistration(event) {
 
 // ---- Handle Logout ----
 export function handleLogout() {
+    // Get the chat manager instance if it exists
+    const chatManager = window.chatManager;
+    if (chatManager) {
+        // Send offline status before closing
+        chatManager.sendStatusUpdate("offline");
+        // Close WebSocket connection
+        if (chatManager.ws) {
+            chatManager.ws.close();
+        }
+    }
+    
     localStorage.removeItem('currentUser');
+    localStorage.removeItem('chatNotifications');
+    localStorage.removeItem('onlineUsers');
     showLoginForm();
 }
 
@@ -202,29 +217,54 @@ export function showProfile() {
                 <h1>Forum</h1>
             </div>
             <div class="nav-right">
-                <div class="profile-menu">
+                <div class="profile-menu" onclick="toggleProfileMenu(event)">
                     <img src="${currentUser.avatar || '/static/images/profile.png'}" alt="Profile" class="profile-icon">
                     <span>${currentUser.username}</span>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <a href="#" onclick="showProfile()">My Profile</a>
+                        <a href="#" onclick="handleLogout()">Logout</a>
+                    </div>
                 </div>
             </div>
         </nav>
-        <div class="container">
-            <h2>Profile Information</h2>
-            <div class="profile-info">
-                <div class="profile-field"><label>Username:</label><span>${currentUser.username}</span></div>
-                <div class="profile-field"><label>Email:</label><span>${currentUser.email || 'N/A'}</span></div>
-                <div class="profile-field"><label>First Name:</label><span>${currentUser.firstName || 'N/A'}</span></div>
-                <div class="profile-field"><label>Last Name:</label><span>${currentUser.lastName || 'N/A'}</span></div>
-                <div class="profile-field"><label>Age:</label><span>${currentUser.age || 'N/A'}</span></div>
-                <div class="profile-field"><label>Gender:</label><span>${currentUser.gender || 'N/A'}</span></div>
+
+        <!-- Chat Sidebar -->
+        <div class="chat-sidebar">
+            <div class="chat-sidebar-header">
+                <h2>Messages</h2>
             </div>
-            <div class="profile-actions">
-                <button onclick="handleLogout()">Logout</button>
-                <button onclick="backToHome()">Back to Home</button>
-                <button onclick="showEditProfile()">Edit Profile</button>
+            <div class="chat-users-container">
+                <ul id="chat-user-list" class="chat-user-list"></ul>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content" style="margin-left: 280px; padding: 20px;">
+            <div class="container">
+                <h2>Profile Information</h2>
+                <div class="profile-info">
+                    <div class="profile-field"><label>Username:</label><span>${currentUser.username}</span></div>
+                    <div class="profile-field"><label>Email:</label><span>${currentUser.email || 'N/A'}</span></div>
+                    <div class="profile-field"><label>First Name:</label><span>${currentUser.firstName || 'N/A'}</span></div>
+                    <div class="profile-field"><label>Last Name:</label><span>${currentUser.lastName || 'N/A'}</span></div>
+                    <div class="profile-field"><label>Age:</label><span>${currentUser.age || 'N/A'}</span></div>
+                    <div class="profile-field"><label>Gender:</label><span>${currentUser.gender || 'N/A'}</span></div>
+                </div>
+                <div class="profile-actions">
+                    <button onclick="handleLogout()">Logout</button>
+                    <button onclick="backToHome()">Back to Home</button>
+                    <button onclick="showEditProfile()">Edit Profile</button>
+                </div>
             </div>
         </div>
     `;
+
+    // Initialize ChatManager after DOM is updated
+    if (!window.chatManager) {
+        window.chatManager = new ChatManager();
+    } else {
+        window.chatManager.loadAllUsers(); // Reload user list
+    }
 }
 
 // ---- Show Edit Profile ----
@@ -233,28 +273,64 @@ function showEditProfile() {
     const app = document.getElementById("app");
 
     app.innerHTML = `
-        <div class="container">
-            <h2>Edit Profile</h2>
-            <form id="editProfileForm">
-                <div class="form-group"><label>First Name:</label><input type="text" name="firstName" value="${user.firstName || ''}" required></div>
-                <div class="form-group"><label>Last Name:</label><input type="text" name="lastName" value="${user.lastName || ''}" required></div>
-                <div class="form-group"><label>Email:</label><input type="email" name="email" value="${user.email || ''}" required></div>
-                <div class="form-group"><label>Age:</label><input type="number" name="age" value="${user.age || ''}" required></div>
-                <div class="form-group">
-                    <label>Gender:</label>
-                    <select name="gender">
-                        <option value="female" ${user.gender === 'female' ? 'selected' : ''}>Female</option>
-                        <option value="male" ${user.gender === 'male' ? 'selected' : ''}>Male</option>
-                    </select>
+        <nav class="navbar">
+            <div class="nav-left">
+                <h1>Forum</h1>
+            </div>
+            <div class="nav-right">
+                <div class="profile-menu" onclick="toggleProfileMenu(event)">
+                    <img src="${user.avatar || '/static/images/profile.png'}" alt="Profile" class="profile-icon">
+                    <span>${user.username}</span>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <a href="#" onclick="showProfile()">My Profile</a>
+                        <a href="#" onclick="handleLogout()">Logout</a>
+                    </div>
                 </div>
-                <div class="form-group"><label>Profile Picture:</label><input type="file" name="profilePicture" accept="image/*"></div>
-                <button type="submit">Save Changes</button>
-                <button type="button" onclick="showProfile()">Cancel</button>
-            </form>
+            </div>
+        </nav>
+
+        <!-- Chat Sidebar -->
+        <div class="chat-sidebar">
+            <div class="chat-sidebar-header">
+                <h2>Messages</h2>
+            </div>
+            <div class="chat-users-container">
+                <ul id="chat-user-list" class="chat-user-list"></ul>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content" style="margin-left: 280px; padding: 20px;">
+            <div class="container">
+                <h2>Edit Profile</h2>
+                <form id="editProfileForm">
+                    <div class="form-group"><label>First Name:</label><input type="text" name="firstName" value="${user.firstName || ''}" required></div>
+                    <div class="form-group"><label>Last Name:</label><input type="text" name="lastName" value="${user.lastName || ''}" required></div>
+                    <div class="form-group"><label>Email:</label><input type="email" name="email" value="${user.email || ''}" required></div>
+                    <div class="form-group"><label>Age:</label><input type="number" name="age" value="${user.age || ''}" required></div>
+                    <div class="form-group">
+                        <label>Gender:</label>
+                        <select name="gender">
+                            <option value="female" ${user.gender === 'female' ? 'selected' : ''}>Female</option>
+                            <option value="male" ${user.gender === 'male' ? 'selected' : ''}>Male</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Profile Picture:</label><input type="file" name="profilePicture" accept="image/*"></div>
+                    <button type="submit">Save Changes</button>
+                    <button type="button" onclick="showProfile()">Cancel</button>
+                </form>
+            </div>
         </div>
     `;
 
     document.getElementById("editProfileForm").addEventListener("submit", handleProfileUpdate);
+
+    // Initialize ChatManager after DOM is updated
+    if (!window.chatManager) {
+        window.chatManager = new ChatManager();
+    } else {
+        window.chatManager.loadAllUsers(); // Reload user list
+    }
 }
 
 // ---- Handle Profile Update ----

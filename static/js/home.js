@@ -3,47 +3,27 @@ import { loadComments, submitComment } from './comments.js';
 import { reactToPost } from './reactions.js';
 
 export async function showHomePage(user) {
-    const chatSidebar = document.querySelector(".chat-sidebar");
-    const chatWindow = document.querySelector(".chat-window");
-    
-    if (chatSidebar) {
-        chatSidebar.style.display = "block";
-    }
-    if (chatWindow) {
-        chatWindow.style.display = "none"; // Hide chat window by default
-    }
-    
-    const app = document.getElementById('app');
-
-    // 🔄 Fetch fresh user data from backend (friend's logic)
-    let freshUser = user;
-    try {
-        const res = await fetch(`http://localhost:8080/api/user/${user.id}`);
-        if (res.ok) {
-            freshUser = await res.json();
-        } else {
-            console.warn("Could not refresh user info. Using cached.");
-        }
-    } catch (err) {
-        // Ignore fetch errors, use cached user
-    }
-
-    const avatar = freshUser.avatar || "/static/images/profile.png";
-
+    const app = document.getElementById("app");
     app.innerHTML = `
         <nav class="navbar">
             <div class="nav-left">
                 <h1>Forum</h1>
             </div>
             <div class="nav-right">
+                <button class="theme-toggle" onclick="toggleTheme()">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>
+                    </svg>
+                </button>
                 <div class="profile-menu" onclick="toggleProfileMenu(event)">
-                    <img src="${avatar}" alt="Profile" class="profile-icon">
+                    <img src="${user.avatar || '/static/images/profile.png'}" alt="Profile" class="profile-icon">
                     <span>${user.username}</span>
                     <div class="profile-dropdown" id="profileDropdown">
                         <a href="#" onclick="showProfile()">My Profile</a>
                         <a href="#" onclick="handleLogout()">Logout</a>
                     </div>
                 </div>
+                <img src="/static/images/chat.png" alt="Forum Icon" class="nav-icon">
             </div>
         </nav>
 
@@ -59,20 +39,12 @@ export async function showHomePage(user) {
 
         <!-- Main Content Area -->
         <div class="main-content" style="margin-left: 280px; padding: 20px;">
-            <div class="container home-container">
-                <h2>Welcome, ${user.username}!</h2>
-                <div class="welcome-message">
-                    <p>Welcome to our Forum! Here you can:</p>
-                    <ul>
-                        <li>Create and participate in discussions</li>
-                        <li>Share your thoughts and ideas</li>
-                        <li>Connect with other users</li>
-                    </ul>
-                </div>
-                <div class="action-buttons">
-                    <button onclick="showCreatePost()" class="primary-button">Create New Post</button>
-                    <button onclick="showAllPosts()" class="secondary-button">View All Posts</button>
-                </div>
+            <div class="container">
+                <h2 class="welcome-message"> Welcome, ${user.username}!</h2>
+                <div id="posts-container"></div>
+                <button onclick="showCreatePost()" class="create-post-button">
+                    <i class="fas fa-plus"></i> Create Post
+                </button>
             </div>
         </div>
     `;
@@ -83,6 +55,9 @@ export async function showHomePage(user) {
     } else {
         window.chatManager.loadAllUsers(); // Reload user list
     }
+
+    // Load posts
+    showAllPosts();
 }
 
 // Profile dropdown toggle (from both versions)
@@ -120,34 +95,76 @@ export async function showCreatePost() {
     }
 
     app.innerHTML = `
-        <div class="container">
-            <h2>Create New Post</h2>
-            <form id="createPostForm">
-                <div class="form-group">
-                    <label for="title">Title:</label>
-                    <input type="text" id="title" name="title" required>
+        <nav class="navbar">
+            <div class="nav-left">
+                <h1>Forum</h1>
+            </div>
+            <div class="nav-right">
+                <button class="theme-toggle" onclick="toggleTheme()">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>
+                    </svg>
+                </button>
+                <div class="profile-menu" onclick="toggleProfileMenu(event)">
+                    <img src="${currentUser.avatar || '/static/images/profile.png'}" alt="Profile" class="profile-icon">
+                    <span>${currentUser.username}</span>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <a href="#" onclick="showProfile()">My Profile</a>
+                        <a href="#" onclick="handleLogout()">Logout</a>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="content">Content:</label>
-                    <textarea id="content" name="content" required></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="category">Category:</label>
-                    <select id="category" name="category" required>
-                        ${categoryOptions}
-                    </select>
-                </div>
-                <button type="submit">Post</button>
-                <button type="button" onclick="backToHome()">Cancel</button>
-            </form>
+                <img src="/static/images/icon.jpeg" alt="Forum Icon" class="nav-icon">
+            </div>
+        </nav>
+
+        <!-- Chat Sidebar -->
+        <div class="chat-sidebar">
+            <div class="chat-sidebar-header">
+                <h2>Messages</h2>
+            </div>
+            <div class="chat-users-container">
+                <ul id="chat-user-list" class="chat-user-list"></ul>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content" style="margin-left: 280px; padding: 20px;">
+            <div class="container">
+                <h2>Create New Post</h2>
+                <form id="createPostForm">
+                    <div class="form-group">
+                        <label for="title">Title:</label>
+                        <input type="text" id="title" name="title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="content">Content:</label>
+                        <textarea id="content" name="content" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="category">Category:</label>
+                        <select id="category" name="category" required>
+                            ${categoryOptions}
+                        </select>
+                    </div>
+                    <button type="submit">Post</button>
+                    <button type="button" onclick="backToHome()">Cancel</button>
+                </form>
+            </div>
         </div>
     `;
 
     document.getElementById("createPostForm").addEventListener("submit", handleCreatePost);
+
+    // Initialize ChatManager after DOM is updated
+    if (!window.chatManager) {
+        window.chatManager = new ChatManager();
+    } else {
+        window.chatManager.loadAllUsers(); // Reload user list
+    }
 }
 window.showCreatePost = showCreatePost;
 
-// Handle post creation (merged, friend’s version uses consistent naming and parseInt for IDs)
+// Handle post creation (merged, friend's version uses consistent naming and parseInt for IDs)
 async function handleCreatePost(event) {
     event.preventDefault();
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
@@ -180,27 +197,29 @@ async function handleCreatePost(event) {
     }
 }
 
-// Show all posts (friend’s detailed version with reactions and comments)
+// Show all posts (friend's detailed version with reactions and comments)
 async function showAllPosts() {
-    const app = document.getElementById("app");
-
     try {
         const response = await fetch("http://localhost:8080/api/posts");
         const data = await response.json();
 
         if (!response.ok) {
             console.error("❌ Server error:", data.error);
-            app.innerHTML = `<p class="error">⚠️ ${data.error || "Failed to load posts"}</p>`;
             return;
         }
 
         if (!Array.isArray(data)) {
             console.warn("❗ Expected array, got:", data);
-            app.innerHTML = `<p class="error">⚠️ Unexpected response format</p>`;
             return;
         }
 
         const posts = data;
+        const postsContainer = document.getElementById("posts-container");
+
+        if (!postsContainer) {
+            console.error("Posts container not found");
+            return;
+        }
 
         let postHTML = posts.map(post => `
             <div class="post">
@@ -216,44 +235,35 @@ async function showAllPosts() {
                 </div>
 
                 <div class="reactions">
-                    <button onclick="reactToPost(${post.id}, 'like')">👍 <span id="likes-${post.id}">${post.likes_count}</span></button>
-                    <button onclick="reactToPost(${post.id}, 'dislike')">👎 <span id="dislikes-${post.id}">${post.dislikes_count}</span></button>
+                    <button class="like-button" onclick="reactToPost(${post.id}, 'like')">
+                        <img src="/static/images/like.png" alt="Like">
+                        <span id="likes-${post.id}">${post.likes_count}</span>
+                    </button>
+                    <button class="dislike-button" onclick="reactToPost(${post.id}, 'dislike')">
+                        <img src="/static/images/dislike.png" alt="Dislike">
+                        <span id="dislikes-${post.id}">${post.dislikes_count}</span>
+                    </button>
                 </div>
 
                 <div class="comments-section">
                     <div id="comments-for-${post.id}"></div>
                     <form onsubmit="submitComment(event, ${post.id})">
-                        <input id="comment-input-${post.id}" type="text" placeholder="Write a comment..." required>
+                        <input id="comment-input-${post.id}" type="text" placeholder="Write a comment...">
                         <button type="submit">Send</button>
                     </form>
                 </div>
-
-                <hr>
             </div>
         `).join("");
 
-        app.innerHTML = `
-            <div class="container">
-                <h2>All Posts</h2>
-                ${postHTML || "<p>No posts found.</p>"}
-                <button onclick="backToHome()">Back to Home</button>
-            </div>
-        `;
+        postsContainer.innerHTML = postHTML || "<p>No posts found.</p>";
 
-        setTimeout(() => {
-            posts.forEach(post => {
-                const el = document.getElementById(`comments-for-${post.id}`);
-                if (el) {
-                    loadComments(post.id);
-                } else {
-                    console.warn("No container found for post", post.id);
-                }
-            });
-        }, 100);
+        // Load comments for each post
+        posts.forEach(post => {
+            loadComments(post.id);
+        });
 
     } catch (error) {
-        console.error("Failed to load posts:", error);
-        app.innerHTML = `<p class="error">Failed to load posts</p>`;
+        console.error("Error loading posts:", error);
     }
 }
 window.showAllPosts = showAllPosts;

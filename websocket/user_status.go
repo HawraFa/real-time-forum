@@ -3,6 +3,8 @@ package websocket
 import (
 	"sync"
 	"time"
+	"log"
+	
 )
 
 type UserStatus struct {
@@ -22,6 +24,45 @@ var (
 	statusManager *UserStatusManager
 	once          sync.Once
 )
+
+var (
+	pendingOffline = make(map[int64]chan bool)
+	pendingMu      = sync.Mutex{}
+)
+
+func DelayedOfflineCheck(userID int64, username, avatar string) {
+	pendingMu.Lock()
+
+	// cancel existing wait if exists
+	if cancel, ok := pendingOffline[userID]; ok {
+		close(cancel) // signal cancellation
+	}
+	cancelChan := make(chan bool)
+	pendingOffline[userID] = cancelChan
+	pendingMu.Unlock()
+
+	go func() {
+		select {
+		case <-time.After(2 * time.Second):
+			clientsMu.Lock()
+			connected := len(Clients[int(userID)]) > 0
+			clientsMu.Unlock()
+
+			if !connected {
+				log.Printf("Delayed check: user %d is really offline", userID)
+				BroadcastUserStatus(userID, false, username, avatar)
+			}
+		case <-cancelChan:
+			log.Printf("Offline check cancelled for user %d", userID)
+			return
+		}
+
+		pendingMu.Lock()
+		delete(pendingOffline, userID)
+		pendingMu.Unlock()
+	}()
+}
+
 
 func GetStatusManager() *UserStatusManager {
 	once.Do(func() {

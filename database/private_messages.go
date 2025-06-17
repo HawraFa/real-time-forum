@@ -2,15 +2,21 @@ package database
 
 import (
 	"database/sql"
+	"log"
+	"net/http"
+	"time"
+	"real-time-forum/session"
+	"encoding/json"
 )
 
 // GetUserMessages retrieves the last 10 messages between two users
 func GetUserMessages(db *sql.DB, user1ID, user2ID int64, offset int) ([]PrivateMessage, error) {
 	query := `
-		SELECT id, sender_id, receiver_id, message_text, sent_at, is_read 
-		FROM private_messages 
-		WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
-		ORDER BY sent_at DESC
+		SELECT pm.id, pm.sender_id, pm.receiver_id, pm.message_text, pm.sent_at, u.username
+		FROM PrivateMessages pm
+		JOIN Users u ON pm.sender_id = u.id
+		WHERE (pm.sender_id = ? AND pm.receiver_id = ?) OR (pm.sender_id = ? AND pm.receiver_id = ?)
+		ORDER BY pm.sent_at DESC
 		LIMIT 10 OFFSET ?`
 
 	rows, err := db.Query(query, user1ID, user2ID, user2ID, user1ID, offset)
@@ -22,7 +28,7 @@ func GetUserMessages(db *sql.DB, user1ID, user2ID int64, offset int) ([]PrivateM
 	var messages []PrivateMessage
 	for rows.Next() {
 		var msg PrivateMessage
-		err := rows.Scan(&msg.ID, &msg.SenderID, &msg.ReceiverID, &msg.Message, &msg.SentAt, &msg.IsRead)
+		err := rows.Scan(&msg.ID, &msg.SenderID, &msg.ReceiverID, &msg.Content, &msg.SentAt, &msg.Username)
 		if err != nil {
 			return nil, err
 		}
@@ -33,18 +39,30 @@ func GetUserMessages(db *sql.DB, user1ID, user2ID int64, offset int) ([]PrivateM
 
 // SaveMessage saves a new private message and updates the last interaction
 func SaveMessage(db *sql.DB, senderID, receiverID int64, message string) error {
+	log.Println("💬 Saving message from", senderID, "to", receiverID)
+
 	// Insert the message
 	result, err := db.Exec(`
-		INSERT INTO private_messages (sender_id, receiver_id, message_text)
+		INSERT INTO PrivateMessages (sender_id, receiver_id, message_text)
 		VALUES (?, ?, ?)`,
 		senderID, receiverID, message)
 	if err != nil {
+		log.Println("❌ Failed to insert message:", err)
 		return err
 	}
 
 	messageID, err := result.LastInsertId()
 	if err != nil {
+		log.Println("❌ Failed to get last insert ID:", err)
 		return err
+	}
+
+	// Always normalize the order of user IDs (lower ID first)
+	user1ID := senderID
+	user2ID := receiverID
+	if senderID > receiverID {
+		user1ID = receiverID
+		user2ID = senderID
 	}
 
 	// Update or insert last interaction
@@ -54,10 +72,17 @@ func SaveMessage(db *sql.DB, senderID, receiverID int64, message string) error {
 		ON CONFLICT(user1_id, user2_id) DO UPDATE SET
 			last_message_id = ?,
 			last_interaction_time = CURRENT_TIMESTAMP`,
-		senderID, receiverID, messageID, messageID)
+		user1ID, user2ID, messageID, messageID)
 
-	return err
+	if err != nil {
+		log.Println("❌ Failed to update chat_last_interactions:", err)
+		return err
+	}
+
+	log.Println("✅ Updated chat_last_interactions:", user1ID, user2ID)
+	return nil
 }
+
 
 // GetUserChats retrieves all chat conversations for a user, sorted by last interaction
 func GetUserChats(db *sql.DB, userID int64) ([]ChatLastInteraction, error) {
@@ -130,10 +155,68 @@ func GetOnlineUsers(db *sql.DB) ([]int64, error) {
 // MarkMessagesAsRead marks all messages from a sender to a receiver as read
 func MarkMessagesAsRead(db *sql.DB, senderID, receiverID int64) error {
 	_, err := db.Exec(`
-		UPDATE private_messages 
+		UPDATE PrivateMessages 
 		SET is_read = true 
 		WHERE sender_id = ? AND receiver_id = ? AND is_read = false`,
 		senderID, receiverID)
 	return err
-} 
+}
+
+func GetLastChatInteractionsHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) {
+	currentUserID, err := session.GetUserIDFromSession(r)
+	if err != nil {
+		log.Println("❌ Unauthorized:", err)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	log.Println("🔍 Getting last interactions for user:", currentUserID)
+
+	query := `
+		SELECT 
+			CASE 
+				WHEN sender_id = ? THEN receiver_id 
+				ELSE sender_id 
+			END AS user2_id,
+			MAX(sent_at) AS last_interaction_time
+		FROM PrivateMessages
+		WHERE sender_id = ? OR receiver_id = ?
+		GROUP BY user2_id
+		ORDER BY last_interaction_time DESC
+	`
+
+	rows, err := db.Query(query, currentUserID, currentUserID, currentUserID)
+	if err != nil {
+		log.Println("❌ Query error:", err)
+		http.Error(w, "Failed to fetch interactions", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	log.Println("✅ Query successful")
+
+	var results []struct {
+		User2ID             int64  `json:"user2Id"`
+		LastInteractionTime string `json:"lastInteractionTime"`
+	}
+
+	for rows.Next() {
+		var user2ID int64
+		var lastTime time.Time
+		if err := rows.Scan(&user2ID, &lastTime); err != nil {
+			log.Println("❌ Scan error:", err)
+			continue
+		}
+		results = append(results, struct {
+			User2ID             int64  `json:"user2Id"`
+			LastInteractionTime string `json:"lastInteractionTime"`
+		}{
+			User2ID:             user2ID,
+			LastInteractionTime: lastTime.Format(time.RFC3339),
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
 

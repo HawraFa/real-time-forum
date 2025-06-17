@@ -1,76 +1,111 @@
+// ✅ FINAL FIXED client.go
 package websocket
 
 import (
-	"github.com/gorilla/websocket"
+	"log"
 	"sync"
+	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 var (
-	Clients   = make(map[int]*Client) // Map of user IDs to clients
-	clientsMu sync.Mutex              // Mutex to protect Clients map
+	Clients   = make(map[int]map[*Client]bool) // userID → active connections
+	clientsMu = sync.Mutex{}
 )
 
 type Client struct {
-	ID       int
 	Conn     *websocket.Conn
-	Send     chan []byte
 	UserID   int
 	Username string
 	Avatar   string
-	TabID    string 
+	Send     chan []byte
 }
 
 func (c *Client) ReadPump() {
+	clientsMu.Lock()
+	if Clients[c.UserID] == nil {
+		Clients[c.UserID] = make(map[*Client]bool)
+	}
+	Clients[c.UserID][c] = true
+	clientsMu.Unlock()
+
+	// Immediately set online status and broadcast
+	statusManager := GetStatusManager()
+	statusManager.SetOnline(int64(c.UserID), c.Username, c.Avatar)
+	BroadcastUserStatus(int64(c.UserID), true, c.Username, c.Avatar)
+	BroadcastPresenceToNewUser(c.UserID, c)
+
 	defer func() {
-		// Remove client from map and set offline status
 		clientsMu.Lock()
-		delete(Clients, c.UserID)
-		clientsMu.Unlock()
-		
-		// Update user status to offline
-		statusManager := GetStatusManager()
-		statusManager.SetOffline(int64(c.UserID))
-		
-		// Broadcast status change
-		BroadcastUserStatus(int64(c.UserID), false, c.Username, c.Avatar)
-		
+		if conns, ok := Clients[c.UserID]; ok {
+			delete(conns, c)
+			if len(conns) == 0 {
+				delete(Clients, c.UserID)
+				clientsMu.Unlock()
+
+				statusManager := GetStatusManager()
+				statusManager.SetOffline(int64(c.UserID))
+				BroadcastUserStatus(int64(c.UserID), false, c.Username, c.Avatar)
+			} else {
+				clientsMu.Unlock()
+			}
+		} else {
+			clientsMu.Unlock()
+		}
 		c.Conn.Close()
 	}()
 
-	// Add client to map
-	clientsMu.Lock()
-	Clients[c.UserID] = c
-	clientsMu.Unlock()
-
-	// Update user status to online
-	statusManager := GetStatusManager()
-	statusManager.SetOnline(int64(c.UserID), c.Username, c.Avatar)
-	
-	// Broadcast status change
-	BroadcastUserStatus(int64(c.UserID), true, c.Username, c.Avatar)
+	c.Conn.SetReadLimit(512)
+	c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	c.Conn.SetPongHandler(func(string) error {
+		c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return nil
+	})
 
 	for {
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
+			log.Println("🔴 WS read error:", err)
 			break
 		}
+
+		// Handle incoming messages
 		handleIncomingMessage(message)
 	}
 }
 
 func (c *Client) WritePump() {
-	defer c.Conn.Close()
-	
+	defer func() {
+		clientsMu.Lock()
+		if clients, ok := Clients[c.UserID]; ok {
+			delete(clients, c)
+			if len(clients) == 0 {
+				delete(Clients, c.UserID)
+				// Immediately broadcast offline status
+				statusManager := GetStatusManager()
+				statusManager.SetOffline(int64(c.UserID))
+				BroadcastUserStatus(int64(c.UserID), false, c.Username, c.Avatar)
+			}
+		}
+		clientsMu.Unlock()
+
+		c.Conn.Close()
+		log.Printf("🔴 WritePump closed for user %d", c.UserID)
+	}()
+
 	for {
 		select {
 		case message, ok := <-c.Send:
 			if !ok {
-				// Channel was closed
+				log.Printf("❌ Channel closed, closing connection for user %d", c.UserID)
+				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			
+
 			err := c.Conn.WriteMessage(websocket.TextMessage, message)
 			if err != nil {
+				log.Printf("❌ Error writing message to user %d: %v", c.UserID, err)
 				return
 			}
 		}

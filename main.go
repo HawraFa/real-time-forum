@@ -149,7 +149,7 @@ func main() {
 
 		// Query database with pagination
 		rows, err := db.Query(`
-        SELECT id, username, first_name, last_name, email, avatar, gender, age 
+        SELECT id, username, first_name, last_name, avatar
         FROM Users 
         ORDER BY username ASC
         LIMIT ? OFFSET ?
@@ -166,8 +166,7 @@ func main() {
 		for rows.Next() {
 			var u database.User
 			if err := rows.Scan(
-				&u.ID, &u.Username, &u.FirstName, &u.LastName,
-				&u.Email, &u.Avatar, &u.Gender, &u.Age,
+				&u.ID, &u.Username, &u.FirstName, &u.LastName, &u.Avatar,
 			); err != nil {
 				log.Printf("Row scan error: %v", err)
 				continue // Skip problematic rows instead of failing entire request
@@ -197,7 +196,9 @@ func main() {
 		}
 
 		// Cache control headers
-		w.Header().Set("Cache-Control", "max-age=60") // Cache for 1 minute
+		// w.Header().Set("Cache-Control", "max-age=60") // Cache for 1 minute
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+
 
 		json.NewEncoder(w).Encode(users)
 	}))
@@ -481,29 +482,70 @@ http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Re
 	// 🔁 NEW: Chat History API
 	http.HandleFunc("/api/chat/history", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		
+		// Debugging - log all incoming requests
+		log.Printf("🔍 Chat history request: %s %s", r.Method, r.URL.String())
 
 		userID := r.URL.Query().Get("user_id")
 		offsetStr := r.URL.Query().Get("offset")
 
 		currentUserID, err := session.GetUserIDFromSession(r)
 		if err != nil {
-			http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)
-			return
+				log.Println("❌ Unauthorized chat history request")
+				http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)
+				return
 		}
 
-		log.Println("Current User ID:", currentUserID)
+		log.Printf("Current User ID: %d", currentUserID)
 
-		otherUserID, _ := strconv.Atoi(userID)
+		otherUserID, err := strconv.Atoi(userID)
+		if err != nil {
+				log.Println("❌ Invalid user_id parameter:", userID)
+				http.Error(w, `{"error": "Invalid user_id"}`, http.StatusBadRequest)
+				return
+		}
+
 		offset, _ := strconv.Atoi(offsetStr)
+		if offset < 0 {
+				offset = 0
+		}
 
+		log.Printf("🔍 Fetching chat history between %d and %d (offset: %d)", 
+				currentUserID, otherUserID, offset)
+		
 		messages, err := database.GetUserMessages(db, int64(currentUserID), int64(otherUserID), offset)
 		if err != nil {
-			http.Error(w, `{"error": "Failed to load messages"}`, http.StatusInternalServerError)
-			return
+				log.Println("❌ GetUserMessages failed:", err)
+				http.Error(w, `{"error": "Failed to load messages"}`, http.StatusInternalServerError)
+				return
 		}
 
+		if messages == nil {
+				messages = []database.PrivateMessage{} // Ensure we never return null
+		}
+
+		log.Printf("✅ Returning %d messages", len(messages))
 		json.NewEncoder(w).Encode(messages)
 	}))
+
+	http.HandleFunc("/api/chat/last-interactions", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+
+    currentUserID, err := session.GetUserIDFromSession(r)
+    if err != nil {
+        http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+        return
+    }
+
+    interactions, err := database.GetUserChats(db, int64(currentUserID))
+    if err != nil {
+        http.Error(w, `{"error": "Failed to load interactions"}`, http.StatusInternalServerError)
+        return
+    }
+
+    json.NewEncoder(w).Encode(interactions)
+}))
+
 
 	// 🧾 NEW: Mark Messages as Read
 	http.HandleFunc("/api/chat/mark-read", enableCORS(func(w http.ResponseWriter, r *http.Request) {

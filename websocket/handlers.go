@@ -65,8 +65,12 @@ func ServeWS(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 		}
 
 		clientsMu.Lock()
-		Clients[userID] = client
+		if Clients[userID] == nil {
+				Clients[userID] = make(map[*Client]bool)
+		}
+		Clients[userID][client] = true
 		clientsMu.Unlock()
+
 
 		go client.WritePump()
 		go client.ReadPump()
