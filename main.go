@@ -101,6 +101,10 @@ func main() {
 				err.Error() == "password must contain at least one number" ||
 				err.Error() == "password must contain at least one special character" {
 				http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
+			} else if strings.Contains(err.Error(), "UNIQUE constraint failed: Users.username") {
+				http.Error(w, `{"error": "Username is already taken"}`, http.StatusBadRequest)
+			} else if strings.Contains(err.Error(), "UNIQUE constraint failed: Users.email") {
+				http.Error(w, `{"error": "Email is already registered"}`, http.StatusBadRequest)
 			} else {
 				http.Error(w, `{"error": "Registration failed"}`, http.StatusInternalServerError)
 			}
@@ -126,7 +130,7 @@ func main() {
 
 		userID, valid := database.ValidateUser(db, req.UsernameOrEmail, req.Password)
 		if !valid {
-			http.Error(w, `{"error": "Invalid credentials"}`, http.StatusUnauthorized)
+			http.Error(w, `{"error": "Invalid username/email or password"}`, http.StatusUnauthorized)
 			return
 		}
 
