@@ -1,6 +1,5 @@
 export class ChatManager {
   constructor() {
-    
     console.log("ChatManager: Constructor started");
 
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
@@ -39,17 +38,14 @@ export class ChatManager {
       chatSidebar.style.display = "block";
     }
 
-    this.setupWebSocket();
-    this.setupEventListeners();
-    this.loadAllUsers();
-
     // Initialize with empty message container
     if (this.messageContainer) {
       this.messageContainer.innerHTML = '';
     }
 
-    // Load initial online status
-    this.sendStatusUpdate("online");
+    // Set up WebSocket and event listeners
+    this.setupWebSocket();
+    this.setupEventListeners();
   }
 
   handleNotLoggedIn() {
@@ -61,73 +57,65 @@ export class ChatManager {
     window.showLoginForm();
   }
 
-setupWebSocket() {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${protocol}//${window.location.host}/ws`;
-  
-  this.ws = new WebSocket(wsUrl);
+  setupWebSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
 
-  this.ws.onopen = () => {
-    console.log("WebSocket connection established");
-    this.isConnected = true;
-    this.reconnectAttempts = 0;
-    
-    // Send online status immediately
-    this.sendStatusUpdate("online");
-    
-    // Request current online users list
-    this.ws.send(JSON.stringify({
-      type: "get_online_users"
-    }));
-  };
+    this.ws = new WebSocket(wsUrl);
 
-  this.ws.onclose = () => {
-    console.log("WebSocket connection closed");
-    this.isConnected = false;
-    //this.handleReconnect();
-  };
+    this.ws.onopen = () => {
+      console.log("WebSocket connection established");
+      this.isConnected = true;
+      this.reconnectAttempts = 0;
+      
+      // Send initial status
+      this.sendStatusUpdate("online");
+      
+      // Request online users list
+      this.ws.send(JSON.stringify({
+        type: "get_online_users"
+      }));
 
-  this.ws.onerror = (error) => {
-    console.error("WebSocket error:", error);
-  };
+      // Wait until currentUserId is set before loading users
+      const waitForCurrentUserId = async () => {
+        if (this.currentUserId) {
+          this.loadAllUsers();
+        } else {
+          console.log("Waiting for currentUserId to be set before loading users...");
+          setTimeout(waitForCurrentUserId, 200);
+        }
+      };
+      waitForCurrentUserId();
+    };
 
-  this.ws.onmessage = (event) => {
-    try {
-      const message = JSON.parse(event.data);
-      this.handleMessage(message);
-    } catch (error) {
-      console.error("Error parsing WebSocket message:", error);
-    }
-  };
+    this.ws.onclose = () => {
+      console.log("WebSocket connection closed");
+      this.isConnected = false;
+      this.handleReconnect();
+    };
 
-  // Handle page visibility changes
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-      if (!this.isConnected) {
-        this.setupWebSocket();
-      } else {
-        // Request fresh online users list when tab becomes visible
-        this.ws.send(JSON.stringify({
-          type: "get_online_users"
-        }));
+    this.ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    this.ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        this.handleMessage(message);
+      } catch (err) {
+        console.error("Failed to parse WebSocket message:", err);
       }
-    } else {
-      this.sendStatusUpdate("offline");
-    }
-  });
-}
+    };
+  }
 
-
-// Add this new helper method
-showConnectionError() {
-  const errorElement = document.createElement('div');
-  errorElement.className = 'connection-error';
-  errorElement.textContent = 'Connection lost. Please refresh the page.';
-  document.body.appendChild(errorElement);
-  setTimeout(() => errorElement.remove(), 5000);
-}
-
-
+  // Add this new helper method
+  showConnectionError() {
+    const errorElement = document.createElement('div');
+    errorElement.className = 'connection-error';
+    errorElement.textContent = 'Connection lost. Please refresh the page.';
+    document.body.appendChild(errorElement);
+    setTimeout(() => errorElement.remove(), 5000);
+  }
 
   setupEventListeners() {
     const form = document.querySelector(".message-input-form");
@@ -171,33 +159,18 @@ showConnectionError() {
     }
   }
 
-  // async loadAllUsers() {
-  //   try {
-  //     const response = await fetch("/api/users");
-  //     const contentType = response.headers.get("content-type");
-  //     if (!contentType || !contentType.includes("application/json")) {
-  //       throw new Error("Received non-json response (likely a redirect)");
-  //     }
-  //     const users = await response.json();
-  //     this.updateUsersList(users);
-  //   } catch (error) {
-  //     console.error("Failed to load users:", error.message);
-  //     alert("You must be logged in to access chat.");
-  //     window.showLoginForm();
-  //   }
-  // }
-
   async loadAllUsers() {
     try {
-      const [usersRes, interactionsRes] = await Promise.all([
-        // fetch("/api/users"),
-        fetch(`/api/users?_=${Date.now()}`),  // Force fresh fetch
-        fetch("/api/chat/last-interactions")
-      ]);
-  
-      if (!usersRes.ok) throw new Error("Failed to load users");
+      // Get all users
+      const usersRes = await fetch(`/api/users?_=${Date.now()}`);
+      if (!usersRes.ok) {
+        throw new Error(`Failed to load users: ${usersRes.status}`);
+      }
       const users = await usersRes.json();
-  
+      console.log("All users from server:", users);
+
+      // Then get interactions
+      const interactionsRes = await fetch("/api/chat/last-interactions");
       let interactions = [];
       if (interactionsRes.ok) {
         const contentType = interactionsRes.headers.get("content-type");
@@ -207,101 +180,129 @@ showConnectionError() {
           console.warn("⚠️ Interactions response was not JSON");
         }
       }
-  
+
       // ✅ Ensure it's always an array
       if (!Array.isArray(interactions)) {
         console.warn("⚠️ Interactions is not an array, defaulting to []");
         interactions = [];
       }
-  
+
       const interactionMap = {};
       interactions.forEach(inter => {
         interactionMap[inter.user2Id] = new Date(inter.lastInteractionTime);
       });
-  
+
+      // Filter out the current user and ensure all required fields are present
       const usersWithTimes = users
-        .filter(user => parseInt(user.id) !== parseInt(this.currentUserId))
-        // .filter(user => String(user.id) !== String(this.currentUserId))
+        .filter(user => {
+          if (!user || !user.id) {
+            console.warn("⚠️ Found invalid user object:", user);
+            return false;
+          }
+          // Convert both IDs to numbers for comparison
+          const userId = parseInt(user.id);
+          const currentUserId = parseInt(this.currentUserId);
+          const isCurrentUser = userId === currentUserId;
+          console.log(`Checking user ${user.username} (ID: ${userId}) against current user (ID: ${currentUserId}): ${isCurrentUser ? 'is current user' : 'is not current user'}`);
+          return !isCurrentUser;
+        })
         .map(user => ({
           ...user,
+          id: parseInt(user.id), // Ensure ID is a number
           lastInteractionTime: interactionMap[user.id] || null
         }));
-      
-  
+
+      console.log("Filtered users:", usersWithTimes);
+
+      // Sort users by last interaction time and then alphabetically
       usersWithTimes.sort((a, b) => {
         const aTime = a.lastInteractionTime;
         const bTime = b.lastInteractionTime;
-  
+
         if (aTime && bTime) return bTime - aTime;
         if (aTime) return -1;
         if (bTime) return 1;
         return a.username.localeCompare(b.username);
       });
-  
-      console.log("✅ Sorted users:", usersWithTimes.map(u => u.username));
+
+      console.log("✅ Final sorted users:", usersWithTimes.map(u => u.username));
+
+      // Update the UI with the filtered and sorted users
       this.updateUsersList(usersWithTimes);
     } catch (err) {
       console.error("❌ loadAllUsers failed:", err);
       alert("Something went wrong loading users.");
     }
   }
-  
 
-// In your ChatManager class, modify the updateUsersList method:
-updateUsersList(users) {
+  updateUsersList(users) {
     const userList = document.querySelector(".chat-user-list");
-    if (!userList) return;
+    if (!userList) {
+      console.error("Chat user list element not found");
+      return;
+    }
+
+    // Clear the current list
     userList.innerHTML = "";
 
-    // To place users with recent interactions, then the rest alphabetically.
-    const filteredUsers = users.filter(user => user.id !== this.currentUserId);
+    // Double check to ensure current user is not in the list
+    const filteredUsers = users.filter(user => {
+      if (!user || !user.id) {
+        console.warn("⚠️ Found invalid user in updateUsersList:", user);
+        return false;
+      }
+      const isCurrentUser = parseInt(user.id) === parseInt(this.currentUserId);
+      console.log(`updateUsersList: Checking user ${user.username} (ID: ${user.id}) against current user (ID: ${this.currentUserId}): ${isCurrentUser ? 'is current user' : 'is not current user'}`);
+      return !isCurrentUser;
+    });
+
+    console.log("Final users to display:", filteredUsers);
 
     filteredUsers.forEach((user) => {
-        const userElement = document.createElement("li");
-        userElement.className = "chat-user-item";
-        userElement.dataset.userId = user.id;
+      const userElement = document.createElement("li");
+      userElement.className = "chat-user-item";
+      userElement.dataset.userId = user.id;
 
-        // Get online status from our Set
-        const isOnline = this.onlineUsers.has(user.id);
+      // Get online status from our Set
+      const isOnline = this.onlineUsers.has(user.id);
 
-        userElement.innerHTML = `
-            <div class="chat-user-avatar">
-                <img src="${user.avatar || "/static/images/profile.png"}" alt="${user.username}">
-                <span class="chat-user-status ${isOnline ? "status-online" : "status-offline"}"></span>
-            </div>
-            <div class="chat-user-info">
-                <div class="chat-user-name">${user.username}</div>
-                <div class="chat-user-fullname">${user.firstName} ${user.lastName}</div>
-            </div>
-        `;
+      userElement.innerHTML = `
+        <div class="chat-user-avatar">
+          <img src="${user.avatar || "/static/images/profile.png"}" alt="${user.username}">
+          <span class="chat-user-status ${isOnline ? "status-online" : "status-offline"}"></span>
+        </div>
+        <div class="chat-user-info">
+          <div class="chat-user-name">${user.username}</div>
+          <div class="chat-user-fullname">${user.firstName} ${user.lastName}</div>
+        </div>
+      `;
 
-        // Add notification dot if user has notifications
-        if (this.notifications[user.id]) {
-            const userInfo = userElement.querySelector(".chat-user-info");
-            const notificationDot = document.createElement("div");
-            notificationDot.className = "notification-dot";
-            userInfo.appendChild(notificationDot);
+      // Add notification dot if user has notifications
+      if (this.notifications[user.id]) {
+        const userInfo = userElement.querySelector(".chat-user-info");
+        const notificationDot = document.createElement("div");
+        notificationDot.className = "notification-dot";
+        userInfo.appendChild(notificationDot);
+      }
+
+      userElement.addEventListener("click", () => {
+        // Remove notification dot when clicked
+        const notificationDot = userElement.querySelector(".notification-dot");
+        if (notificationDot) {
+          notificationDot.remove();
+          // Remove from notifications state
+          delete this.notifications[user.id];
+          localStorage.setItem('chatNotifications', JSON.stringify(this.notifications));
         }
-
-        userElement.addEventListener("click", () => {
-            // Remove notification dot when clicked
-            const notificationDot = userElement.querySelector(".notification-dot");
-            if (notificationDot) {
-                notificationDot.remove();
-                // Remove from notifications state
-                delete this.notifications[user.id];
-                localStorage.setItem('chatNotifications', JSON.stringify(this.notifications));
-            }
-            this.selectUser(user.id);
-        });
-        userList.appendChild(userElement);
+        this.selectUser(user.id);
+      });
+      userList.appendChild(userElement);
     });
 
     console.log("🧪 Final sidebar order:", filteredUsers.map(u => u.username));
+  }
 
-}
-
- // Update handleMessage to properly handle status updates
+  // Update handleMessage to properly handle status updates
   handleMessage(message) {
     console.log("🔁 handleMessage ran")
     switch (message.type) {
