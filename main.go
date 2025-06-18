@@ -51,10 +51,15 @@ func generateUniqueFilename(originalName string) string {
 }
 
 func main() {
-	db, err := sql.Open("sqlite3", "./real-time-forum.db")
+	db, err := sql.Open("sqlite3", "./real-time-forum.db?_busy_timeout=5000")
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
 	}
+	_, err = db.Exec("PRAGMA journal_mode=WAL;")
+	if err != nil {
+		log.Fatalf("❌ Failed to set WAL mode: %v", err)
+	}
+
 	defer db.Close()
 
 	database.DB = db
@@ -422,11 +427,9 @@ func main() {
 		}
 
 		if posts == nil {
-			log.Println("QueryPosts returned nil — setting to empty list")
 			posts = []database.Post{}
 		}
 
-		log.Printf("Returning %d posts", len(posts))
 		json.NewEncoder(w).Encode(posts)
 	}))
 
@@ -611,7 +614,6 @@ func main() {
 				return
 			}
 
-			log.Printf("Returning %d comments", len(comments))
 			json.NewEncoder(w).Encode(comments)
 			return
 		}

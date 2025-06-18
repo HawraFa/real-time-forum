@@ -7,7 +7,10 @@ import (
 	"net/http"
 	"real-time-forum/session"
 	"time"
+  // "sync"
 )
+
+// var dbMutex sync.Mutex
 
 // GetUserMessages retrieves the last 10 messages between two users
 func GetUserMessages(db *sql.DB, user1ID, user2ID int64, offset int) ([]PrivateMessage, error) {
@@ -39,6 +42,8 @@ func GetUserMessages(db *sql.DB, user1ID, user2ID int64, offset int) ([]PrivateM
 
 // SaveMessage saves a new private message and updates the last interaction
 func SaveMessage(db *sql.DB, senderID, receiverID int64, message string) error {
+	// dbMutex.Lock()
+	// defer dbMutex.Unlock()
 
 	// Insert the message
 	result, err := db.Exec(`
