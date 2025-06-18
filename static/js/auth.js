@@ -15,8 +15,8 @@ export function showLoginForm() {
             <div id="error" class="error" style="display: none;"></div>
             <form id="loginForm" onsubmit="handleLogin(event)">
                 <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" required>
+                    <label for="usernameOrEmail">Username or Email</label>
+                    <input type="text" id="usernameOrEmail" name="usernameOrEmail" required>
                 </div>
 
                 <div class="form-group">
@@ -80,7 +80,17 @@ export function showRegistrationForm() {
 
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required>
+                    <input type="password" id="password" name="password" required oninput="validatePasswordStrength()">
+                    <div id="password-requirements" class="password-requirements">
+                        <div class="requirement" id="req-length"><span class="check">✗</span> At least 8 characters</div>
+                        <div class="requirement" id="req-uppercase"><span class="check">✗</span> One uppercase letter</div>
+                        <div class="requirement" id="req-lowercase"><span class="check">✗</span> One lowercase letter</div>
+                        <div class="requirement" id="req-number"><span class="check">✗</span> One number</div>
+                        <div class="requirement" id="req-special"><span class="check">✗</span> One special character</div>
+                    </div>
+                    <div id="password-strength" class="password-strength">
+                        <div class="strength-bar"></div>
+                    </div>
                 </div>
                 <button type="submit">Register</button>
             </form>
@@ -105,7 +115,7 @@ export async function handleLogin(event) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                username: form.username.value,
+                usernameOrEmail: form.usernameOrEmail.value,
                 password: form.password.value,
             }),
             credentials: 'include' // Ensure cookie is saved
@@ -143,6 +153,14 @@ export async function handleRegistration(event) {
     const error = document.getElementById('error');
     error.style.display = 'none';
 
+    // Validate password strength
+    const password = form.password.value;
+    if (!isPasswordStrong(password)) {
+        error.textContent = 'Password does not meet strength requirements. Please ensure your password has at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character.';
+        error.style.display = 'block';
+        return;
+    }
+
     const formData = {
         username: form.username.value,
         email: form.email.value,
@@ -178,6 +196,58 @@ export async function handleRegistration(event) {
         error.textContent = err.message;
         error.style.display = 'block';
     }
+}
+
+// ---- Password Validation Functions ----
+function validatePasswordStrength() {
+    const password = document.getElementById('password').value;
+    const requirements = {
+        length: password.length >= 8,
+        uppercase: /[A-Z]/.test(password),
+        lowercase: /[a-z]/.test(password),
+        number: /[0-9]/.test(password),
+        special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+    };
+
+    // Update requirement indicators
+    Object.keys(requirements).forEach(req => {
+        const element = document.getElementById(`req-${req}`);
+        const checkSpan = element.querySelector('.check');
+        if (requirements[req]) {
+            checkSpan.textContent = '✓';
+            checkSpan.style.color = '#22c55e';
+            element.style.color = '#22c55e';
+        } else {
+            checkSpan.textContent = '✗';
+            checkSpan.style.color = '#ef4444';
+            element.style.color = '#6b7280';
+        }
+    });
+
+    // Update strength bar
+    const strengthBar = document.querySelector('.strength-bar');
+    const metRequirements = Object.values(requirements).filter(Boolean).length;
+    const strengthPercentage = (metRequirements / 5) * 100;
+    
+    strengthBar.style.width = `${strengthPercentage}%`;
+    
+    if (strengthPercentage <= 40) {
+        strengthBar.style.backgroundColor = '#ef4444'; // Red
+    } else if (strengthPercentage <= 80) {
+        strengthBar.style.backgroundColor = '#f59e0b'; // Orange
+    } else {
+        strengthBar.style.backgroundColor = '#22c55e'; // Green
+    }
+}
+
+function isPasswordStrong(password) {
+    return (
+        password.length >= 8 &&
+        /[A-Z]/.test(password) &&
+        /[a-z]/.test(password) &&
+        /[0-9]/.test(password) &&
+        /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+    );
 }
 
 // ---- Handle Logout ----
@@ -391,4 +461,5 @@ window.showRegistrationForm = showRegistrationForm;
 window.handleLogin = handleLogin;
 window.handleRegistration = handleRegistration;
 window.handleLogout = handleLogout;
-window.showProfile = showProfile; 
+window.showProfile = showProfile;
+window.validatePasswordStrength = validatePasswordStrength; 

@@ -256,6 +256,36 @@
     width: 100%;
 }
 
+/* Password requirements styling */
+.password-requirements {
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.requirement {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+    transition: color 0.3s ease;
+}
+
+.requirement .check {
+    font-weight: bold;
+    font-size: 1rem;
+    min-width: 1rem;
+    text-align: center;
+}
+
+.requirement.valid {
+    color: var(--success-color);
+}
+
+.requirement.invalid {
+    color: var(--danger-color);
+}
+
 /* Social login buttons */
 .social-login {
     margin-top: 1.5rem;

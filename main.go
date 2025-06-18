@@ -19,8 +19,8 @@ import (
 )
 
 type LoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	UsernameOrEmail string `json:"usernameOrEmail"`
+	Password        string `json:"password"`
 }
 
 func enableCORS(next http.HandlerFunc) http.HandlerFunc {
@@ -82,7 +82,16 @@ func main() {
 		err := database.RegisterUser(db, req.Username, req.FirstName, req.LastName, req.Email, req.Password, "", req.Age, req.Gender)
 		if err != nil {
 			log.Printf("Registration error: %v", err)
-			http.Error(w, `{"error": "Registration failed"}`, http.StatusInternalServerError)
+			// Check if it's a password validation error
+			if err.Error() == "password must be at least 8 characters long" ||
+				err.Error() == "password must contain at least one uppercase letter" ||
+				err.Error() == "password must contain at least one lowercase letter" ||
+				err.Error() == "password must contain at least one number" ||
+				err.Error() == "password must contain at least one special character" {
+				http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
+			} else {
+				http.Error(w, `{"error": "Registration failed"}`, http.StatusInternalServerError)
+			}
 			return
 		}
 
@@ -103,7 +112,7 @@ func main() {
 			return
 		}
 
-		userID, valid := database.ValidateUser(db, req.Username, req.Password)
+		userID, valid := database.ValidateUser(db, req.UsernameOrEmail, req.Password)
 		if !valid {
 			http.Error(w, `{"error": "Invalid credentials"}`, http.StatusUnauthorized)
 			return
