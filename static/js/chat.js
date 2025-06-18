@@ -413,6 +413,13 @@ sendMessage() {
     const content = input.value.trim();
     if (!content || !this.currentChatUser) return;
 
+    // Check for HTML tags in the message
+    const htmlTagRegex = /<[^>]*>/g;
+    if (htmlTagRegex.test(content)) {
+        alert("Error: HTML tags are not allowed in chat messages. Please use plain text only.");
+        return;
+    }
+
     // Check if the recipient is online
     if (!this.onlineUsers.has(this.currentChatUser)) {
         alert("Cannot send message: User is offline");
