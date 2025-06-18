@@ -19,7 +19,7 @@ func GetUserMessages(db *sql.DB, user1ID, user2ID int64, offset int) ([]PrivateM
 		FROM PrivateMessages pm
 		JOIN Users u ON pm.sender_id = u.id
 		WHERE (pm.sender_id = ? AND pm.receiver_id = ?) OR (pm.sender_id = ? AND pm.receiver_id = ?)
-		ORDER BY pm.sent_at ASC
+		ORDER BY pm.sent_at DESC
 		LIMIT 10 OFFSET ?`
 
 	rows, err := db.Query(query, user1ID, user2ID, user2ID, user1ID, offset)

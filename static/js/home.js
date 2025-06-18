@@ -427,36 +427,7 @@ async function handleCreatePost(event) {
     const form = event.target;
     const imageFile = document.getElementById('imageUpload').files[0];
 
-    // Client-side validation
-    const title = form.title.value.trim();
-    const content = form.content.value.trim();
-
-    if (!title) {
-        alert("Title cannot be empty");
-        form.title.focus();
-        return;
-    }
-
-    if (!content) {
-        alert("Content cannot be empty");
-        form.content.focus();
-        return;
-    }
-
-    // Check for HTML tags in title and content
-    if (containsHTMLTags(title)) {
-        alert("HTML tags are not allowed in the title. Please use plain text only.");
-        form.title.focus();
-        return;
-    }
-
-    if (containsHTMLTags(content)) {
-        alert("HTML tags are not allowed in the content. Please use plain text only.");
-        form.content.focus();
-        return;
-    }
-
-    let finalContent = content;
+    let content = form.content.value;
 
     // Upload image if present
     if (imageFile) {
@@ -477,7 +448,7 @@ async function handleCreatePost(event) {
             const imageURL = uploadResult.image_url;
             
             // Add image URL to content
-            finalContent += `\n\n![Uploaded Image](${imageURL})`;
+            content += `\n\n![Uploaded Image](${imageURL})`;
         } catch (error) {
             alert('Failed to upload image: ' + error.message);
             return;
@@ -485,8 +456,8 @@ async function handleCreatePost(event) {
     }
 
     const postData = {
-        title: title,
-        content: finalContent,
+        title: form.title.value,
+        content: content,
         category_ids: [parseInt(form.category.value)],
         author_id: parseInt(currentUser.id)
     };
@@ -501,8 +472,7 @@ async function handleCreatePost(event) {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || "Failed to create post");
+            throw new Error("Failed to create post");
         }
 
         alert("Post created successfully!");
@@ -510,12 +480,6 @@ async function handleCreatePost(event) {
     } catch (error) {
         alert(error.message);
     }
-}
-
-// Function to detect HTML tags
-function containsHTMLTags(text) {
-    const htmlTagRegex = /<[^>]*>/;
-    return htmlTagRegex.test(text);
 }
 
 // Handle image upload and preview
