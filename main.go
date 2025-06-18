@@ -154,85 +154,105 @@ func main() {
 	}))
 
 	// Get all users endpoint
-	http.HandleFunc("/api/users", enableCORS(func(w http.ResponseWriter, r *http.Request) {
-		// Set content type first
-		w.Header().Set("Content-Type", "application/json")
+http.HandleFunc("/api/users", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
 
-		// Only allow GET requests
-		if r.Method != http.MethodGet {
-			http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
-			return
-		}
+    if r.Method != http.MethodGet {
+        http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+        return
+    }
 
-		// Add pagination parameters (optional)
-		limit := 100 // Default limit
-		if l := r.URL.Query().Get("limit"); l != "" {
-			if l, err := strconv.Atoi(l); err == nil && l > 0 {
-				limit = l
-			}
-		}
+    // Get current user ID from session (convert to int64 if needed)
+    currentUserID, err := session.GetUserIDFromSession(r)
+    if err != nil {
+        currentUserID = 0
+    }
+    currentUserID64 := int64(currentUserID) // Convert to int64 for database operations
 
-		offset := 0
-		if o := r.URL.Query().Get("offset"); o != "" {
-			if o, err := strconv.Atoi(o); err == nil && o >= 0 {
-				offset = o
-			}
-		}
+    // Get status manager instance
+    statusManager := websocket.GetStatusManager()
 
-		// Query database with pagination
-		rows, err := db.Query(`
+    // Get pagination parameters
+    limit := 100
+    if l := r.URL.Query().Get("limit"); l != "" {
+        if l, err := strconv.Atoi(l); err == nil && l > 0 {
+            limit = l
+        }
+    }
+
+    offset := 0
+    if o := r.URL.Query().Get("offset"); o != "" {
+        if o, err := strconv.Atoi(o); err == nil && o >= 0 {
+            offset = o
+        }
+    }
+
+    // Query database (using int64 for user_id comparison)
+    rows, err := db.Query(`
         SELECT id, username, first_name, last_name, avatar
         FROM Users 
+        WHERE id != ?
         ORDER BY username ASC
         LIMIT ? OFFSET ?
-    `, limit, offset)
+    `, currentUserID64, limit, offset)
 
-		if err != nil {
-			log.Printf("Database query error: %v", err)
-			http.Error(w, `{"error": "Failed to fetch users"}`, http.StatusInternalServerError)
-			return
-		}
-		defer rows.Close()
+    if err != nil {
+        log.Printf("Database query error: %v", err)
+        http.Error(w, `{"error": "Failed to fetch users"}`, http.StatusInternalServerError)
+        return
+    }
+    defer rows.Close()
 
-		var users []database.User
-		for rows.Next() {
-			var u database.User
-			if err := rows.Scan(
-				&u.ID, &u.Username, &u.FirstName, &u.LastName, &u.Avatar,
-			); err != nil {
-				log.Printf("Row scan error: %v", err)
-				continue // Skip problematic rows instead of failing entire request
-			}
+    var users []database.User
+    for rows.Next() {
+        var userID int64
+        var u database.User
+        
+        // Scan into temporary int64 variable first
+        if err := rows.Scan(
+            &userID, &u.Username, &u.FirstName, &u.LastName, &u.Avatar,
+        ); err != nil {
+            log.Printf("Row scan error: %v", err)
+            continue
+        }
+        
+        // Convert to int if your User struct expects it
+        u.ID = int(userID)
 
-			// Get online status
-			err := db.QueryRow(`
+        // Check both database and real-time status
+        var dbOnline bool
+        _ = db.QueryRow(`
             SELECT is_online 
             FROM user_status 
             WHERE user_id = ?
-        `, u.ID).Scan(&u.IsOnline)
+        `, userID).Scan(&dbOnline)
 
-			if err != nil && err != sql.ErrNoRows {
-				log.Printf("Status query error: %v", err)
-			}
+        // Get real-time status from WebSocket manager
+        if status, exists := statusManager.GetUser(userID); exists {
+            u.IsOnline = status.IsOnline
+        } else {
+            u.IsOnline = dbOnline
+        }
 
-			users = append(users, u)
-		}
+        users = append(users, u)
+    }
 
-		if err := rows.Err(); err != nil {
-			log.Printf("Rows error: %v", err)
-		}
+    if err := rows.Err(); err != nil {
+        log.Printf("Rows error: %v", err)
+    }
 
-		// Return empty array instead of null when no users
-		if users == nil {
-			users = []database.User{}
-		}
+    // Ensure we never return null
+    if users == nil {
+        users = []database.User{}
+    }
 
-		// Cache control headers
-		// w.Header().Set("Cache-Control", "max-age=60") // Cache for 1 minute
-		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+    // Prevent caching to ensure fresh data
+    w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+    w.Header().Set("Pragma", "no-cache")
+    w.Header().Set("Expires", "0")
 
-		json.NewEncoder(w).Encode(users)
-	}))
+    json.NewEncoder(w).Encode(users)
+}))
 
 	http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
