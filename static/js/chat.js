@@ -108,6 +108,20 @@ export class ChatManager {
     };
   }
 
+  handleReconnect() {
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.reconnectAttempts++;
+      console.log(`Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+      
+      setTimeout(() => {
+        this.setupWebSocket();
+      }, 1000 * this.reconnectAttempts); // Exponential backoff
+    } else {
+      console.error("Max reconnection attempts reached");
+      this.showConnectionError();
+    }
+  }
+
   // Add this new helper method
   showConnectionError() {
     const errorElement = document.createElement('div');
@@ -225,7 +239,6 @@ export class ChatManager {
         return a.username.localeCompare(b.username);
       });
 
-      console.log("✅ Final sorted users:", usersWithTimes.map(u => u.username));
 
       // Update the UI with the filtered and sorted users
       this.updateUsersList(usersWithTimes);
@@ -299,7 +312,6 @@ export class ChatManager {
       userList.appendChild(userElement);
     });
 
-    console.log("🧪 Final sidebar order:", filteredUsers.map(u => u.username));
   }
 
   // Update handleMessage to properly handle status updates
@@ -319,7 +331,6 @@ export class ChatManager {
         alert(message.content);
         break;
       case "status":
-        console.log(`✅ Updated status for user ${message.senderId}: ${message.content}`);
         this.updateOnlineStatus(message.senderId, message.content === "online");
         break;
       case "online_users":
@@ -371,11 +382,11 @@ updateSingleUserStatus(userStatus) {
 
 }
 
- displayNewMessage(message) {
-    const messageElement = this.createMessageElement(message);
-    this.messageContainer.appendChild(messageElement);
-    this.messageContainer.scrollTop = this.messageContainer.scrollHeight;
-}
+//  displayNewMessage(message) {
+//     const messageElement = this.createMessageElement(message);
+//     this.messageContainer.appendChild(messageElement);
+//     this.messageContainer.scrollTop = this.messageContainer.scrollHeight;
+// }
 
  createMessageElement(message) {
     const div = document.createElement("div");
@@ -419,6 +430,13 @@ sendMessage() {
         return;
     }
 
+    // Check for HTML tags in message content
+    if (this.containsHTMLTags(content)) {
+        alert("HTML tags are not allowed in messages. Please use plain text only.");
+        input.focus();
+        return;
+    }
+
     // Create the message object
     const message = {
         type: "message",
@@ -444,6 +462,12 @@ sendMessage() {
         console.error("Failed to send message", err);
         alert("Failed to send message. Please try again.");
     }
+}
+
+// Function to detect HTML tags
+containsHTMLTags(text) {
+    const htmlTagRegex = /<[^>]*>/;
+    return htmlTagRegex.test(text);
 }
 
   showTypingIndicator(message) {
@@ -542,55 +566,102 @@ sendMessage() {
   //   }
   // }
 
-  async loadMoreMessages() {
-    // Prevent multiple concurrent loads
-    if (this.isLoadingMessages || !this.hasMoreMessages || !this.currentChatUser) {
-      return;
-    }
+  // async loadMoreMessages() {
+  //   // Prevent multiple concurrent loads
+  //   if (this.isLoadingMessages || !this.hasMoreMessages || !this.currentChatUser) {
+  //     return;
+  //   }
   
+  //   this.isLoadingMessages = true;
+  //   this.showLoadingIndicator();
+  
+  //   try {
+  //     const scrollHeightBefore = this.messageContainer.scrollHeight;
+  //     const scrollTopBefore = this.messageContainer.scrollTop;
+  
+  //     const response = await fetch(
+  //       `/api/chat/history?user_id=${this.currentChatUser}&offset=${this.messageOffset}&limit=${this.messagesBatchSize}`
+  //     );
+      
+  //     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+  //     const messages = await response.json();
+      
+  //     if (messages.length === 0) {
+  //       this.hasMoreMessages = false;
+  //       return;
+  //     }
+  
+  //     // Add messages to top (maintain DOM order)
+  //     messages.forEach(msg => {
+  //       this.addMessageToTop(msg);
+  //     });
+  
+  //     this.messageOffset += messages.length;
+  
+  //     // Restore scroll position (adjusted for new content)
+  //     const scrollHeightAfter = this.messageContainer.scrollHeight;
+  //     this.messageContainer.scrollTop = scrollTopBefore + (scrollHeightAfter - scrollHeightBefore);
+  
+  //     // Check if we've reached the beginning
+  //     if (messages.length < this.messagesBatchSize) {
+  //       this.hasMoreMessages = false;
+  //     }
+  
+  //   } catch (err) {
+  //     console.error("Load more error:", err);
+  //   } finally {
+  //     this.hideLoadingIndicator();
+  //     this.isLoadingMessages = false;
+  //   }
+  // }
+
+  async loadMoreMessages() {
+    if (this.isLoadingMessages || !this.hasMoreMessages || !this.currentChatUser) {
+        return;
+    }
+
     this.isLoadingMessages = true;
     this.showLoadingIndicator();
-  
+
     try {
-      const scrollHeightBefore = this.messageContainer.scrollHeight;
-      const scrollTopBefore = this.messageContainer.scrollTop;
-  
-      const response = await fetch(
-        `/api/chat/history?user_id=${this.currentChatUser}&offset=${this.messageOffset}&limit=${this.messagesBatchSize}`
-      );
-      
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      
-      const messages = await response.json();
-      
-      if (messages.length === 0) {
-        this.hasMoreMessages = false;
-        return;
-      }
-  
-      // Add messages to top (maintain DOM order)
-      messages.forEach(msg => {
-        this.addMessageToTop(msg);
-      });
-  
-      this.messageOffset += messages.length;
-  
-      // Restore scroll position (adjusted for new content)
-      const scrollHeightAfter = this.messageContainer.scrollHeight;
-      this.messageContainer.scrollTop = scrollTopBefore + (scrollHeightAfter - scrollHeightBefore);
-  
-      // Check if we've reached the beginning
-      if (messages.length < this.messagesBatchSize) {
-        this.hasMoreMessages = false;
-      }
-  
+        const scrollHeightBefore = this.messageContainer.scrollHeight;
+        const scrollTopBefore = this.messageContainer.scrollTop;
+
+        const response = await fetch(
+            `/api/chat/history?user_id=${this.currentChatUser}&offset=${this.messageOffset}&limit=${this.messagesBatchSize}`
+        );
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const messages = await response.json();
+        
+        if (messages.length === 0) {
+            this.hasMoreMessages = false;
+            return;
+        }
+
+        // Add messages to top in correct order
+        messages.reverse().forEach(msg => {
+            this.addMessageToTop(msg);
+        });
+
+        this.messageOffset += messages.length;
+
+        // Restore scroll position
+        const scrollHeightAfter = this.messageContainer.scrollHeight;
+        this.messageContainer.scrollTop = scrollTopBefore + (scrollHeightAfter - scrollHeightBefore);
+
+        if (messages.length < this.messagesBatchSize) {
+            this.hasMoreMessages = false;
+        }
     } catch (err) {
-      console.error("Load more error:", err);
+        console.error("Load more error:", err);
     } finally {
-      this.hideLoadingIndicator();
-      this.isLoadingMessages = false;
+        this.hideLoadingIndicator();
+        this.isLoadingMessages = false;
     }
-  }
+}
 
   // async markMessagesAsRead(senderId) {
   //   try {
@@ -810,25 +881,61 @@ async getUserById(userId) {
     }, 2000);
   }
 
-  async loadInitialChatHistory(userId) {
-    try {
+  // async loadInitialChatHistory(userId) {
+  //   try {
+  //     this.messageOffset = 0;
+  //     this.hasMoreMessages = true;
+      
+  //     const response = await fetch(
+  //       `/api/chat/history?user_id=${userId}&offset=${this.messageOffset}&limit=${this.messagesBatchSize}`
+  //     );
+  //     const messages = await response.json();
+      
+  //     if (!Array.isArray(messages)) {
+  //       throw new Error("Expected array of messages");
+  //     }
+  
+  //     // Clear existing messages
+  //     this.messageContainer.innerHTML = '';
+      
+  //     // Display messages in chronological order (newest at bottom)
+  //     messages.reverse().forEach(msg => this.displayNewMessage(msg));
+      
+  //     // Auto-scroll to bottom to show newest messages
+  //     this.messageContainer.scrollTop = this.messageContainer.scrollHeight;
+      
+  //     // Update offset for next load
+  //     this.messageOffset += messages.length;
+      
+  //     // If we got fewer than requested, no more messages
+  //     if (messages.length < this.messagesBatchSize) {
+  //       this.hasMoreMessages = false;
+  //     }
+  //   } catch (err) {
+  //     console.error("Failed to load initial chat history:", err);
+  //   }
+  // }
+
+  // Modify loadInitialChatHistory to maintain proper order
+async loadInitialChatHistory(userId) {
+  try {
       this.messageOffset = 0;
       this.hasMoreMessages = true;
       
       const response = await fetch(
-        `/api/chat/history?user_id=${userId}&offset=${this.messageOffset}&limit=${this.messagesBatchSize}`
+          `/api/chat/history?user_id=${userId}&offset=${this.messageOffset}&limit=${this.messagesBatchSize}`
       );
       const messages = await response.json();
       
       if (!Array.isArray(messages)) {
-        throw new Error("Expected array of messages");
+          throw new Error("Expected array of messages");
       }
   
       // Clear existing messages
       this.messageContainer.innerHTML = '';
       
-      // Display messages in chronological order (newest at bottom)
-      messages.reverse().forEach(msg => this.displayNewMessage(msg));
+      // Display messages in chronological order (no reversal needed now)
+      messages.forEach(msg => this.displayNewMessage(msg));
       
       // Auto-scroll to bottom to show newest messages
       this.messageContainer.scrollTop = this.messageContainer.scrollHeight;
@@ -836,14 +943,20 @@ async getUserById(userId) {
       // Update offset for next load
       this.messageOffset += messages.length;
       
-      // If we got fewer than requested, no more messages
       if (messages.length < this.messagesBatchSize) {
-        this.hasMoreMessages = false;
+          this.hasMoreMessages = false;
       }
-    } catch (err) {
+  } catch (err) {
       console.error("Failed to load initial chat history:", err);
-    }
   }
+}
+
+// Simplify displayNewMessage to always append to bottom
+displayNewMessage(message) {
+  const messageElement = this.createMessageElement(message);
+  this.messageContainer.appendChild(messageElement);
+  this.messageContainer.scrollTop = this.messageContainer.scrollHeight;
+}
 
   addMessageToTop(message) {
     const messageElement = this.createMessageElement(message);
