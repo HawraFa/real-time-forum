@@ -41,17 +41,21 @@ export async function showHomePage(user) {
         <div class="main-content" style="margin-left: 280px; padding: 20px;">
             <div class="container">
                 <h2 class="welcome-message"> Welcome, ${user.username}!</h2>
+                
+                <!-- Action Buttons at the top -->
+                <div class="action-buttons" style="margin-bottom: 20px;">
+                    <button onclick="showFilterPage()" class="filter-post-button">
+                        <i class="fas fa-filter"></i> Filter Posts
+                    </button>
+                    <button id="my-posts-btn" class="my-posts-button">
+                        <i class="fas fa-user"></i> My Posts
+                    </button>
+                    <button onclick="showCreatePost()" class="create-post-button">
+                        <i class="fas fa-plus"></i> Create Post
+                    </button>
+                </div>
+                
                 <div id="posts-container"></div>
-                <button onclick="showFilterPage()" class="filter-post-button" style="margin-bottom: 10px;">
-                    <i class="fas fa-filter"></i> Filter Posts
-                </button>
-                <button id="my-posts-btn" class="my-posts-button">
-                    <i class="fas fa-user"></i> My Posts
-                </button>
-                 
-                <button onclick="showCreatePost()" class="create-post-button">
-                    <i class="fas fa-plus"></i> Create Post
-                </button>
             </div>
         </div>
     `;
@@ -111,10 +115,10 @@ export async function showHomePage(user) {
             <div class="main-content" style="margin-left: 280px; padding: 20px;">
                 <div class="container">
                     <h2>My Posts</h2>
-                    <div id="posts-container"></div>
-                    <button onclick="backToHome()" class="back-button" style="margin-top: 20px;">
+                    <button onclick="backToHome()" class="back-button" style="margin-bottom: 20px;">
                         <i class="fas fa-arrow-left"></i> Back to Home
                     </button>
+                    <div id="posts-container"></div>
                 </div>
             </div>
         `;
@@ -215,6 +219,9 @@ export async function showCreatePost() {
         <div class="main-content" style="margin-left: 280px; padding: 20px;">
             <div class="container">
                 <h2>Create New Post</h2>
+                <button type="button" onclick="backToHome()" class="back-button" style="margin-bottom: 20px;">
+                    <i class="fas fa-arrow-left"></i> Back to Home
+                </button>
                 <form id="createPostForm">
                     <div class="form-group">
                         <label for="title">Title:</label>
@@ -231,7 +238,6 @@ export async function showCreatePost() {
                         </select>
                     </div>
                     <button type="submit">Post</button>
-                    <button type="button" onclick="backToHome()">Cancel</button>
                 </form>
             </div>
         </div>

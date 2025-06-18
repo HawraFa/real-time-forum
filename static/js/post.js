@@ -49,6 +49,11 @@ export async function showPostDetails(postId) {
         <!-- Main Content Area -->
         <div class="main-content" style="margin-left: 280px; padding: 20px;">
             <div class="post-detail">
+                <div style="text-align: right; margin-bottom: 20px;">
+                    <button onclick="backToHome()" class="back-button">
+                        <i class="fas fa-arrow-left"></i> Back to Home
+                    </button>
+                </div>
                 <img src="${avatarSrc}" alt="${post.username}'s avatar" class="avatar">
                 <h2>${post.title}</h2>
                 <p>${post.content}</p>
@@ -71,16 +76,12 @@ export async function showPostDetails(postId) {
 
                 <div class="comments-section">
                     <h3>Comments</h3>
-                    <div id="comments-for-${post.id}"></div>
                     <form onsubmit="submitComment(event, ${post.id})" class="comment-form">
                         <input id="comment-input-${post.id}" type="text" placeholder="Write a comment...">
                         <button type="submit">Send Comment</button>
                     </form>
+                    <div id="comments-for-${post.id}"></div>
                 </div>
-
-                <button onclick="backToHome()" class="back-button" style="margin-top: 2rem;">
-                    <i class="fas fa-arrow-left"></i> Back to Home
-                </button>
             </div>
         </div>
     `;

@@ -1456,4 +1456,63 @@
 
 .filter-controls:hover {
     box-shadow: var(--shadow-md);
+}
+
+/* Action Buttons Container */
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: var(--surface-color);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+.action-buttons button {
+    flex: 1;
+    min-width: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.filter-post-button {
+    background: var(--primary-color);
+    color: white;
+}
+
+.filter-post-button:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.my-posts-button {
+    background: var(--secondary-color);
+    color: white;
+}
+
+.my-posts-button:hover {
+    background: var(--secondary-dark);
+    transform: translateY(-1px);
+}
+
+.create-post-button {
+    background: var(--success-color);
+    color: white;
+}
+
+.create-post-button:hover {
+    background: var(--success-dark);
+    transform: translateY(-1px);
 } 
