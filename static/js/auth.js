@@ -92,6 +92,10 @@ export function showRegistrationForm() {
                         <div class="strength-bar"></div>
                     </div>
                 </div>
+                 <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" required>
+                </div>
                 <button type="submit">Register</button>
             </form>
             <div class="switch-form">
@@ -157,6 +161,13 @@ export async function handleRegistration(event) {
     const password = form.password.value;
     if (!isPasswordStrong(password)) {
         error.textContent = 'Password does not meet strength requirements. Please ensure your password has at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character.';
+        error.style.display = 'block';
+        return;
+    }
+
+    const confirmPassword = form.confirmPassword.value;
+    if (password !== confirmPassword) {
+        error.textContent = 'Passwords do not match.';
         error.style.display = 'block';
         return;
     }
