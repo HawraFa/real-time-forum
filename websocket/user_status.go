@@ -3,21 +3,19 @@ package websocket
 import (
 	"sync"
 	"time"
-	"log"
-	
 )
 
 type UserStatus struct {
-	UserID    int64
-	IsOnline  bool
-	LastSeen  time.Time
-	Username  string
-	Avatar    string
+	UserID   int64
+	IsOnline bool
+	LastSeen time.Time
+	Username string
+	Avatar   string
 }
 
 type UserStatusManager struct {
-	mu     sync.RWMutex
-	users  map[int64]*UserStatus
+	mu    sync.RWMutex
+	users map[int64]*UserStatus
 }
 
 var (
@@ -49,11 +47,9 @@ func DelayedOfflineCheck(userID int64, username, avatar string) {
 			clientsMu.Unlock()
 
 			if !connected {
-				log.Printf("Delayed check: user %d is really offline", userID)
 				BroadcastUserStatus(userID, false, username, avatar)
 			}
 		case <-cancelChan:
-			log.Printf("Offline check cancelled for user %d", userID)
 			return
 		}
 
@@ -62,7 +58,6 @@ func DelayedOfflineCheck(userID int64, username, avatar string) {
 		pendingMu.Unlock()
 	}()
 }
-
 
 func GetStatusManager() *UserStatusManager {
 	once.Do(func() {
@@ -76,17 +71,17 @@ func GetStatusManager() *UserStatusManager {
 func (m *UserStatusManager) SetOnline(userID int64, username, avatar string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	if user, exists := m.users[userID]; exists {
 		user.IsOnline = true
 		user.LastSeen = time.Now()
 	} else {
 		m.users[userID] = &UserStatus{
-			UserID:    userID,
-			IsOnline:  true,
-			LastSeen:  time.Now(),
-			Username:  username,
-			Avatar:    avatar,
+			UserID:   userID,
+			IsOnline: true,
+			LastSeen: time.Now(),
+			Username: username,
+			Avatar:   avatar,
 		}
 	}
 }
@@ -94,7 +89,7 @@ func (m *UserStatusManager) SetOnline(userID int64, username, avatar string) {
 func (m *UserStatusManager) SetOffline(userID int64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	if user, exists := m.users[userID]; exists {
 		user.IsOnline = false
 		user.LastSeen = time.Now()
@@ -104,7 +99,7 @@ func (m *UserStatusManager) SetOffline(userID int64) {
 func (m *UserStatusManager) GetStatus(userID int64) (bool, time.Time) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	if user, exists := m.users[userID]; exists {
 		return user.IsOnline, user.LastSeen
 	}
@@ -114,7 +109,7 @@ func (m *UserStatusManager) GetStatus(userID int64) (bool, time.Time) {
 func (m *UserStatusManager) GetAllOnlineUsers() []*UserStatus {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	var onlineUsers []*UserStatus
 	for _, user := range m.users {
 		if user.IsOnline {
@@ -127,7 +122,7 @@ func (m *UserStatusManager) GetAllOnlineUsers() []*UserStatus {
 func (m *UserStatusManager) GetUser(userID int64) (*UserStatus, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	user, exists := m.users[userID]
 	return user, exists
 }

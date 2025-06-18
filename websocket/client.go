@@ -66,7 +66,6 @@ func (c *Client) ReadPump() {
 	for {
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
-			log.Println("🔴 WS read error:", err)
 			break
 		}
 
@@ -91,14 +90,12 @@ func (c *Client) WritePump() {
 		clientsMu.Unlock()
 
 		c.Conn.Close()
-		log.Printf("🔴 WritePump closed for user %d", c.UserID)
 	}()
 
 	for {
 		select {
 		case message, ok := <-c.Send:
 			if !ok {
-				log.Printf("❌ Channel closed, closing connection for user %d", c.UserID)
 				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}

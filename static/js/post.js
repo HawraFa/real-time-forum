@@ -1,6 +1,27 @@
 import { loadComments } from './comments.js';
 import { reactToPost } from './reactions.js';
 
+// Helper function to render content with images
+function renderContentWithImages(content) {
+    // Simple regex to detect markdown-style image syntax: ![alt](url)
+    const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+    let lastIndex = 0;
+    let result = '';
+    let match;
+
+    while ((match = imageRegex.exec(content)) !== null) {
+        // Add text before the image
+        result += content.slice(lastIndex, match.index);
+        // Add the image
+        result += `<img src="${match[2]}" alt="${match[1]}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 10px 0;">`;
+        lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text
+    result += content.slice(lastIndex);
+    return result;
+}
+
 export async function showPostDetails(postId) {
   const app = document.getElementById("app");
   const currentUser = JSON.parse(localStorage.getItem("currentUser"));
@@ -56,7 +77,9 @@ export async function showPostDetails(postId) {
                 </div>
                 <img src="${avatarSrc}" alt="${post.username}'s avatar" class="avatar">
                 <h2>${post.title}</h2>
-                <p>${post.content}</p>
+                <div class="post-content">
+                    ${renderContentWithImages(post.content)}
+                </div>
 
                 <div class="post-meta">
                     <div><strong>By:</strong> ${post.username}</div>

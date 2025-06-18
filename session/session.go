@@ -2,7 +2,7 @@ package session
 
 import (
 	"net/http"
-	"log"
+	//"log"
 	"github.com/gorilla/sessions"
 )
 
@@ -29,9 +29,6 @@ func GetUserIDFromSession(r *http.Request) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-
-	// Debug logging
-	log.Printf("Session values: %+v", session.Values)
 
 	userID, ok := session.Values["user_id"].(int)
 	if !ok {

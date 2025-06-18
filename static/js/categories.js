@@ -9,7 +9,6 @@ async function loadCategories() {
 
     const select = document.getElementById("categoryFilter");
     if (!select) {
-      console.error("❌ Cannot find #categoryFilter");
       return;
     }
 

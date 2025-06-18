@@ -2,15 +2,19 @@ package main
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
+	"path/filepath"
 	"real-time-forum/database"
 	"real-time-forum/session"
 	websocket "real-time-forum/websocket"
+	"time"
 
 	"strconv"
 	"strings"
@@ -26,16 +30,24 @@ type LoginRequest struct {
 func enableCORS(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-
 		next(w, r)
 	}
+}
+
+// generateUniqueFilename creates a unique filename for uploaded images
+func generateUniqueFilename(originalName string) string {
+	ext := filepath.Ext(originalName)
+	bytes := make([]byte, 16)
+	rand.Read(bytes)
+	uniqueID := hex.EncodeToString(bytes)
+	timestamp := time.Now().Unix()
+	return fmt.Sprintf("%d_%s%s", timestamp, uniqueID, ext)
 }
 
 func main() {
@@ -489,9 +501,6 @@ func main() {
 	http.HandleFunc("/api/chat/history", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		// Debugging - log all incoming requests
-		log.Printf("🔍 Chat history request: %s %s", r.Method, r.URL.String())
-
 		userID := r.URL.Query().Get("user_id")
 		offsetStr := r.URL.Query().Get("offset")
 
@@ -516,9 +525,6 @@ func main() {
 			offset = 0
 		}
 
-		log.Printf("🔍 Fetching chat history between %d and %d (offset: %d)",
-			currentUserID, otherUserID, offset)
-
 		messages, err := database.GetUserMessages(db, int64(currentUserID), int64(otherUserID), offset)
 		if err != nil {
 			log.Println("❌ GetUserMessages failed:", err)
@@ -530,7 +536,6 @@ func main() {
 			messages = []database.PrivateMessage{} // Ensure we never return null
 		}
 
-		log.Printf("✅ Returning %d messages", len(messages))
 		json.NewEncoder(w).Encode(messages)
 	}))
 
@@ -629,6 +634,64 @@ func main() {
 		}
 
 		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+	}))
+
+	// Image upload endpoint
+	http.HandleFunc("/api/upload-image", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Parse multipart form (max 10MB)
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			http.Error(w, `{"error": "Failed to parse form"}`, http.StatusBadRequest)
+			return
+		}
+
+		// Get the uploaded file
+		file, header, err := r.FormFile("image")
+		if err != nil {
+			http.Error(w, `{"error": "No image file provided"}`, http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+
+		// Check file type
+		contentType := header.Header.Get("Content-Type")
+		if !strings.HasPrefix(contentType, "image/") {
+			http.Error(w, `{"error": "File must be an image"}`, http.StatusBadRequest)
+			return
+		}
+
+		// Generate unique filename
+		filename := generateUniqueFilename(header.Filename)
+		filepath := fmt.Sprintf("static/images/%s", filename)
+
+		// Create the file
+		dst, err := os.Create(filepath)
+		if err != nil {
+			log.Printf("Failed to create file: %v", err)
+			http.Error(w, `{"error": "Failed to save image"}`, http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+
+		// Copy the uploaded file to the destination file
+		if _, err := io.Copy(dst, file); err != nil {
+			log.Printf("Failed to copy file: %v", err)
+			http.Error(w, `{"error": "Failed to save image"}`, http.StatusInternalServerError)
+			return
+		}
+
+		// Return the image URL
+		imageURL := fmt.Sprintf("/static/images/%s", filename)
+		json.NewEncoder(w).Encode(map[string]string{
+			"success":   "true",
+			"image_url": imageURL,
+		})
 	}))
 
 	log.Println("Server started at http://localhost:8080")

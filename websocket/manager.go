@@ -3,10 +3,9 @@ package websocket
 import (
 	"database/sql"
 	"encoding/json"
-	// "fmt"
 	"log"
-	"time"
 	"real-time-forum/database"
+	"time"
 )
 
 var DB *sql.DB
@@ -69,8 +68,6 @@ func handleIncomingMessage(raw []byte) {
 		err := database.SaveMessage(DB, int64(msg.SenderID), int64(msg.ReceiverID), msg.Content)
 		if err != nil {
 			log.Println("❌ SaveMessage failed:", err)
-		} else {
-			log.Println("✅ SaveMessage succeeded for", msg.SenderID, "->", msg.ReceiverID)
 		}
 
 		if conns, ok := Clients[msg.SenderID]; ok {
@@ -139,13 +136,13 @@ func BroadcastUserStatus(userID int64, online bool, username, avatar string) {
 		return
 	}
 
-	for uid, conns := range Clients {
+	for _, conns := range Clients {
 		for client := range conns {
 			select {
 			case client.Send <- data:
-				log.Printf("📤 Sent status '%s' of user %d to user %d", status, userID, uid)
+				// Status sent successfully
 			default:
-				log.Printf("⚠️ Skipped sending to client %d due to full channel", client.UserID)
+				// Channel full, skip sending
 			}
 		}
 	}
@@ -170,9 +167,9 @@ func BroadcastPresenceToNewUser(newUserID int, newClient *Client) {
 			data, _ := json.Marshal(msg)
 			select {
 			case newClient.Send <- data:
-				log.Printf("👋 Telling user %d that %d is online", newUserID, uid)
+				// Presence broadcasted successfully
 			default:
-				log.Printf("⚠️ Could not tell user %d that %d is online", newUserID, uid)
+				// Channel full, skip sending
 			}
 			break
 		}

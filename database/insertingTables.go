@@ -152,7 +152,6 @@ func InsertReaction(db *sql.DB, userID, postID, commentID int, reactionType stri
 		return err
 	}
 
-	fmt.Println("✅ Reaction inserted/updated successfully!")
 	return nil
 }
 

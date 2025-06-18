@@ -32,6 +32,48 @@ textarea {
     resize: vertical;
 }
 
+/* Image upload styles */
+input[type="file"] {
+    padding: 0.5rem;
+    border: 2px dashed var(--border-color);
+    background-color: var(--background-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+input[type="file"]:hover {
+    border-color: var(--primary-color);
+    background-color: rgba(37, 99, 235, 0.05);
+}
+
+#imagePreview {
+    background: var(--background-color);
+    padding: 1rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    margin-top: 0.5rem;
+}
+
+#imagePreview img {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+/* Post content styles */
+.post-content {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 1rem;
+    font-size: 1rem;
+}
+
+.post-content img {
+    display: block;
+    margin: 1rem 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 /* Buttons */
 button {
     padding: 0.75rem 1.5rem;

@@ -2,11 +2,11 @@ package database
 
 import (
 	"database/sql"
+	"encoding/json"
 	"log"
 	"net/http"
-	"time"
 	"real-time-forum/session"
-	"encoding/json"
+	"time"
 )
 
 // GetUserMessages retrieves the last 10 messages between two users
@@ -39,7 +39,6 @@ func GetUserMessages(db *sql.DB, user1ID, user2ID int64, offset int) ([]PrivateM
 
 // SaveMessage saves a new private message and updates the last interaction
 func SaveMessage(db *sql.DB, senderID, receiverID int64, message string) error {
-	log.Println("💬 Saving message from", senderID, "to", receiverID)
 
 	// Insert the message
 	result, err := db.Exec(`
@@ -82,7 +81,6 @@ func SaveMessage(db *sql.DB, senderID, receiverID int64, message string) error {
 	log.Println("✅ Updated chat_last_interactions:", user1ID, user2ID)
 	return nil
 }
-
 
 // GetUserChats retrieves all chat conversations for a user, sorted by last interaction
 func GetUserChats(db *sql.DB, userID int64) ([]ChatLastInteraction, error) {
@@ -170,8 +168,6 @@ func GetLastChatInteractionsHandler(db *sql.DB, w http.ResponseWriter, r *http.R
 		return
 	}
 
-	log.Println("🔍 Getting last interactions for user:", currentUserID)
-
 	query := `
 		SELECT 
 			CASE 
@@ -219,4 +215,3 @@ func GetLastChatInteractionsHandler(db *sql.DB, w http.ResponseWriter, r *http.R
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(results)
 }
-

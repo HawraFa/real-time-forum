@@ -1,12 +1,13 @@
 package websocket
 
 import (
-	"net/http"
-	"github.com/gorilla/websocket"
-	"real-time-forum/session"
 	"database/sql"
 	"log"
-    "real-time-forum/database"
+	"net/http"
+	"real-time-forum/database"
+	"real-time-forum/session"
+
+	"github.com/gorilla/websocket"
 )
 
 var upgrader = websocket.Upgrader{
@@ -37,7 +38,6 @@ func ServeWS(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 		}
 
 		userID, ok := sess.Values["user_id"].(int)
-		log.Printf("User ID from session: %d", userID)
 		if !ok || userID == 0 {
 			http.Error(w, "Invalid user ID", http.StatusUnauthorized)
 			return
@@ -66,11 +66,10 @@ func ServeWS(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 
 		clientsMu.Lock()
 		if Clients[userID] == nil {
-				Clients[userID] = make(map[*Client]bool)
+			Clients[userID] = make(map[*Client]bool)
 		}
 		Clients[userID][client] = true
 		clientsMu.Unlock()
-
 
 		go client.WritePump()
 		go client.ReadPump()

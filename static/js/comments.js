@@ -33,8 +33,6 @@ export async function loadComments(postId) {
         </div>
       `).join('');
 
-      console.log("🔍 Loading comments for:", postId);
-
   } catch (err) {
       console.error("Failed to load comments for post", postId, err);
       container.innerHTML = `<p class="no-comments">Error loading comments.</p>`;
