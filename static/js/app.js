@@ -3,6 +3,58 @@ import { showHomePage } from './home.js';
 import { showPostDetails } from "./post.js"; 
 import './categories.js';
 
+// Define valid routes for the application
+const validRoutes = [
+    '/',
+    '/home',
+    '/login',
+    '/register',
+    '/profile',
+    '/chat',
+    '/posts',
+    '/create-post',
+    '/categories',
+    '/settings'
+];
+
+// Function to show error page
+function showErrorPage() {
+    const app = document.getElementById("app");
+    const errorContainer = document.getElementById("error-container");
+    
+    // Hide the main app content
+    app.style.display = "none";
+    
+    // Show the error container
+    errorContainer.style.display = "flex";
+}
+
+// Function to hide error page
+function hideErrorPage() {
+    const app = document.getElementById("app");
+    const errorContainer = document.getElementById("error-container");
+    
+    // Show the main app content
+    app.style.display = "block";
+    
+    // Hide the error container
+    errorContainer.style.display = "none";
+}
+
+// Function to check if current route is valid
+function checkRoute() {
+    const currentPath = window.location.pathname;
+    
+    // Check if the path is valid
+    if (!validRoutes.includes(currentPath)) {
+        showErrorPage();
+        return false;
+    } else {
+        hideErrorPage();
+        return true;
+    }
+}
+
 // Theme management
 function initTheme() {
     const savedTheme = localStorage.getItem('theme') || 'light';
@@ -29,6 +81,11 @@ function updateThemeIcon(theme) {
 
 // Initialize the application
 function init() {
+    // Check route validity first
+    if (!checkRoute()) {
+        return; // Stop initialization if route is invalid
+    }
+    
     const currentUser = localStorage.getItem('currentUser');
     
     if (!currentUser) {
@@ -54,6 +111,11 @@ function init() {
 
 // Add theme toggle to window object
 window.toggleTheme = toggleTheme;
+
+// Listen for browser back/forward buttons
+window.addEventListener('popstate', function() {
+    checkRoute();
+});
 
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', init); 
