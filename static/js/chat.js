@@ -549,6 +549,56 @@ sendMessage() {
   //   }
   // }
 
+  // async loadMoreMessages() {
+  //   // Prevent multiple concurrent loads
+  //   if (this.isLoadingMessages || !this.hasMoreMessages || !this.currentChatUser) {
+  //     return;
+  //   }
+  
+  //   this.isLoadingMessages = true;
+  //   this.showLoadingIndicator();
+  
+  //   try {
+  //     const scrollHeightBefore = this.messageContainer.scrollHeight;
+  //     const scrollTopBefore = this.messageContainer.scrollTop;
+  
+  //     const response = await fetch(
+  //       `/api/chat/history?user_id=${this.currentChatUser}&offset=${this.messageOffset}&limit=${this.messagesBatchSize}`
+  //     );
+      
+  //     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+  //     const messages = await response.json();
+      
+  //     if (messages.length === 0) {
+  //       this.hasMoreMessages = false;
+  //       return;
+  //     }
+  
+  //     // Add messages to top (maintain DOM order)
+  //     messages.forEach(msg => {
+  //       this.addMessageToTop(msg);
+  //     });
+  
+  //     this.messageOffset += messages.length;
+  
+  //     // Restore scroll position (adjusted for new content)
+  //     const scrollHeightAfter = this.messageContainer.scrollHeight;
+  //     this.messageContainer.scrollTop = scrollTopBefore + (scrollHeightAfter - scrollHeightBefore);
+  
+  //     // Check if we've reached the beginning
+  //     if (messages.length < this.messagesBatchSize) {
+  //       this.hasMoreMessages = false;
+  //     }
+  
+  //   } catch (err) {
+  //     console.error("Load more error:", err);
+  //   } finally {
+  //     this.hideLoadingIndicator();
+  //     this.isLoadingMessages = false;
+  //   }
+  // }
+
   async loadMoreMessages() {
     // Prevent multiple concurrent loads
     if (this.isLoadingMessages || !this.hasMoreMessages || !this.currentChatUser) {
@@ -575,6 +625,7 @@ sendMessage() {
         return;
       }
   
+      messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       // Add messages to top (maintain DOM order)
       messages.forEach(msg => {
         this.addMessageToTop(msg);
@@ -598,6 +649,7 @@ sendMessage() {
       this.isLoadingMessages = false;
     }
   }
+
 
   // async markMessagesAsRead(senderId) {
   //   try {
@@ -833,9 +885,10 @@ async getUserById(userId) {
   
       // Clear existing messages
       this.messageContainer.innerHTML = '';
+      messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       
       // Display messages in chronological order (newest at bottom)
-      messages.reverse().forEach(msg => this.displayNewMessage(msg));
+      messages.forEach(msg => this.displayNewMessage(msg));
       
       // Auto-scroll to bottom to show newest messages
       this.messageContainer.scrollTop = this.messageContainer.scrollHeight;
@@ -851,15 +904,25 @@ async getUserById(userId) {
       console.error("Failed to load initial chat history:", err);
     }
   }
-
   addMessageToTop(message) {
     const messageElement = this.createMessageElement(message);
-    if (this.messageContainer.firstChild) {
-      this.messageContainer.insertBefore(messageElement, this.messageContainer.firstChild);
-    } else {
-      this.messageContainer.appendChild(messageElement);
+  
+    // Insert message in correct place based on timestamp
+    const messageDate = new Date(message.timestamp);
+    const children = Array.from(this.messageContainer.children);
+  
+    for (let i = 0; i < children.length; i++) {
+      const el = children[i];
+      const timeSpan = el.querySelector('.message-time');
+      if (!timeSpan) continue;
+      const existingDate = new Date(timeSpan.textContent);
+      if (messageDate < existingDate) {
+        this.messageContainer.insertBefore(messageElement, el);
+        return;
+      }
     }
   }
+
 
   showLoadingIndicator() {
     const loader = document.createElement('div');

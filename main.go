@@ -154,105 +154,105 @@ func main() {
 	}))
 
 	// Get all users endpoint
-	http.HandleFunc("/api/users", enableCORS(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+http.HandleFunc("/api/users", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
 
-		if r.Method != http.MethodGet {
-			http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
-			return
-		}
+    if r.Method != http.MethodGet {
+        http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+        return
+    }
 
-		// Get current user ID from session (convert to int64 if needed)
-		currentUserID, err := session.GetUserIDFromSession(r)
-		if err != nil {
-			currentUserID = 0
-		}
-		currentUserID64 := int64(currentUserID) // Convert to int64 for database operations
+    // Get current user ID from session (convert to int64 if needed)
+    currentUserID, err := session.GetUserIDFromSession(r)
+    if err != nil {
+        currentUserID = 0
+    }
+    currentUserID64 := int64(currentUserID) // Convert to int64 for database operations
 
-		// Get status manager instance
-		statusManager := websocket.GetStatusManager()
+    // Get status manager instance
+    statusManager := websocket.GetStatusManager()
 
-		// Get pagination parameters
-		limit := 100
-		if l := r.URL.Query().Get("limit"); l != "" {
-			if l, err := strconv.Atoi(l); err == nil && l > 0 {
-				limit = l
-			}
-		}
+    // Get pagination parameters
+    limit := 100
+    if l := r.URL.Query().Get("limit"); l != "" {
+        if l, err := strconv.Atoi(l); err == nil && l > 0 {
+            limit = l
+        }
+    }
 
-		offset := 0
-		if o := r.URL.Query().Get("offset"); o != "" {
-			if o, err := strconv.Atoi(o); err == nil && o >= 0 {
-				offset = o
-			}
-		}
+    offset := 0
+    if o := r.URL.Query().Get("offset"); o != "" {
+        if o, err := strconv.Atoi(o); err == nil && o >= 0 {
+            offset = o
+        }
+    }
 
-		// Query database (using int64 for user_id comparison)
-		rows, err := db.Query(`
-			SELECT id, username, first_name, last_name, avatar
-			FROM Users 
-			WHERE id != ?
-			ORDER BY username ASC
-			LIMIT ? OFFSET ?
-		`, currentUserID64, limit, offset)
+    // Query database (using int64 for user_id comparison)
+    rows, err := db.Query(`
+        SELECT id, username, first_name, last_name, avatar
+        FROM Users 
+        WHERE id != ?
+        ORDER BY username ASC
+        LIMIT ? OFFSET ?
+    `, currentUserID64, limit, offset)
 
-		if err != nil {
-			log.Printf("Database query error: %v", err)
-			http.Error(w, `{"error": "Failed to fetch users"}`, http.StatusInternalServerError)
-			return
-		}
-		defer rows.Close()
+    if err != nil {
+        log.Printf("Database query error: %v", err)
+        http.Error(w, `{"error": "Failed to fetch users"}`, http.StatusInternalServerError)
+        return
+    }
+    defer rows.Close()
 
-		var users []database.User
-		for rows.Next() {
-			var userID int64
-			var u database.User
+    var users []database.User
+    for rows.Next() {
+        var userID int64
+        var u database.User
+        
+        // Scan into temporary int64 variable first
+        if err := rows.Scan(
+            &userID, &u.Username, &u.FirstName, &u.LastName, &u.Avatar,
+        ); err != nil {
+            log.Printf("Row scan error: %v", err)
+            continue
+        }
+        
+        // Convert to int if your User struct expects it
+        u.ID = int(userID)
 
-			// Scan into temporary int64 variable first
-			if err := rows.Scan(
-				&userID, &u.Username, &u.FirstName, &u.LastName, &u.Avatar,
-			); err != nil {
-				log.Printf("Row scan error: %v", err)
-				continue
-			}
+        // Check both database and real-time status
+        var dbOnline bool
+        _ = db.QueryRow(`
+            SELECT is_online 
+            FROM user_status 
+            WHERE user_id = ?
+        `, userID).Scan(&dbOnline)
 
-			// Convert to int if your User struct expects it
-			u.ID = int(userID)
+        // Get real-time status from WebSocket manager
+        if status, exists := statusManager.GetUser(userID); exists {
+            u.IsOnline = status.IsOnline
+        } else {
+            u.IsOnline = dbOnline
+        }
 
-			// Check both database and real-time status
-			var dbOnline bool
-			_ = db.QueryRow(`
-				SELECT is_online 
-				FROM user_status 
-				WHERE user_id = ?
-			`).Scan(&dbOnline)
+        users = append(users, u)
+    }
 
-			// Get real-time status from WebSocket manager
-			if status, exists := statusManager.GetUser(userID); exists {
-				u.IsOnline = status.IsOnline
-			} else {
-				u.IsOnline = dbOnline
-			}
+    if err := rows.Err(); err != nil {
+        log.Printf("Rows error: %v", err)
+    }
 
-			users = append(users, u)
-		}
+    // Ensure we never return null
+    if users == nil {
+        users = []database.User{}
+    }
 
-		if err := rows.Err(); err != nil {
-			log.Printf("Rows error: %v", err)
-		}
+    // Prevent caching to ensure fresh data
+    w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+    w.Header().Set("Pragma", "no-cache")
+    w.Header().Set("Expires", "0")
 
-		// Ensure we never return null
-		if users == nil {
-			users = []database.User{}
-		}
-
-		// Prevent caching to ensure fresh data
-		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-		w.Header().Set("Pragma", "no-cache")
-		w.Header().Set("Expires", "0")
-
-		json.NewEncoder(w).Encode(users)
-	}))
+    json.NewEncoder(w).Encode(users)
+}))
 
 	http.HandleFunc("/api/users/", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -521,14 +521,7 @@ func main() {
 	}))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// Serve index.html for all non-API routes to support SPA routing
-		// API routes are handled separately above
-		if !strings.HasPrefix(r.URL.Path, "/api/") && !strings.HasPrefix(r.URL.Path, "/static/") && r.URL.Path != "/ws" {
-			http.ServeFile(w, r, "static/index.html")
-		} else {
-			// For API routes that don't exist, return 404
-			http.NotFound(w, r)
-		}
+		http.ServeFile(w, r, "static/index.html")
 	})
 
 	// 🔁 NEW: Chat History API
