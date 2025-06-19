@@ -720,6 +720,15 @@ func main() {
 		})
 	}))
 
+	http.HandleFunc("/api/logout", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		sessionData, _ := session.Store.Get(r, "forum-session")
+		sessionData.Options.MaxAge = -1                        // Expire the session cookie
+		sessionData.Values = make(map[interface{}]interface{}) // Clear session values
+		sessionData.Save(r, w)
+		json.NewEncoder(w).Encode(map[string]any{"success": true})
+	}))
+
 	log.Println("Server started at http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
