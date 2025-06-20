@@ -302,6 +302,7 @@ func main() {
 
 	http.HandleFunc("/api/profile/update", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+
 		if r.Method != http.MethodPost {
 			http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
 			return
@@ -312,13 +313,18 @@ func main() {
 			return
 		}
 		// Parse and convert string fields to proper types
-		idStr := r.FormValue("id")
-		ageStr := r.FormValue("age")
-		id, err := strconv.Atoi(idStr)
+		id, err := session.GetUserIDFromSession(r)
 		if err != nil {
-			http.Error(w, `{"error":"Invalid user ID"}`, http.StatusBadRequest)
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
+			
+		// if err != nil {
+		// 	http.Error(w, `{"error":"Invalid user ID"}`, http.StatusBadRequest)
+		// 	return
+		// }
+
+		ageStr := r.FormValue("age") 
 		age, err := strconv.Atoi(ageStr)
 		if err != nil {
 			http.Error(w, `{"error":"Invalid age"}`, http.StatusBadRequest)
@@ -329,7 +335,7 @@ func main() {
 		email := r.FormValue("email")
 		gender := r.FormValue("gender")
 		var avatarPath *string = nil
-		fmt.Println("🧪 Form values 1:", idStr, firstName, lastName, email, ageStr, gender)
+
 		// Handle optional profile picture upload
 		file, handler, err := r.FormFile("profilePicture")
 		if err == nil && handler != nil {
@@ -366,6 +372,7 @@ func main() {
 
 	http.HandleFunc("/api/categories", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+
 		categories, err := database.QueryCategories(db)
 		if err != nil {
 			http.Error(w, `{"error":"Failed to load categories"}`, http.StatusInternalServerError)
@@ -377,6 +384,7 @@ func main() {
 	// API handler for creating a post
 	http.HandleFunc("/api/posts/create", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+
 		if r.Method != http.MethodPost {
 			http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
 			return
@@ -385,7 +393,7 @@ func main() {
 		var req struct {
 			Title       string `json:"title"`
 			Content     string `json:"content"`
-			AuthorID    int    `json:"author_id"`
+			//AuthorID    int    `json:"author_id"`
 			CategoryIDs []int  `json:"category_ids"`
 		}
 
@@ -399,8 +407,14 @@ func main() {
 			return
 		}
 
+		userID, err := session.GetUserIDFromSession(r)
+		if err != nil {
+				http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+				return
+		}
+
 		// Insert the post and get the ID
-		postID, err := database.InsertPostAndReturnID(database.DB, &req.AuthorID, &req.CategoryIDs[0], req.Title, req.Content)
+		postID, err := database.InsertPostAndReturnID(database.DB, &userID, &req.CategoryIDs[0], req.Title, req.Content)
 		if err != nil {
 			log.Printf("Failed to insert post: %v", err)
 			http.Error(w, `{"error": "Failed to create post"}`, http.StatusInternalServerError)
@@ -423,6 +437,7 @@ func main() {
 
 	http.HandleFunc("/api/posts", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		
 
 		// Check if user_id is provided in the query
 		var userID *int
@@ -434,6 +449,7 @@ func main() {
 				return
 			}
 		}
+
 
 		// Pass userID to QueryPosts
 		posts, err := database.QueryPosts(db, userID)
@@ -485,18 +501,25 @@ func main() {
 		}
 
 		var req struct {
-			UserID    int    `json:"user_id"`
+			//UserID    int    `json:"user_id"`
 			PostID    int    `json:"post_id"`
 			CommentID int    `json:"comment_id"`
 			Type      string `json:"type"`
 		}
+
+		userID, err := session.GetUserIDFromSession(r)
+		if err != nil {
+				http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+				return
+		}
+
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 			return
 		}
 
-		err := database.InsertReaction(db, req.UserID, req.PostID, req.CommentID, req.Type)
+		err = database.InsertReaction(db, userID, req.PostID, req.CommentID, req.Type)
 		if err != nil {
 			http.Error(w, `{"error": "Failed to save reaction"}`, http.StatusInternalServerError)
 			return
@@ -640,7 +663,7 @@ func main() {
 
 		if r.Method == http.MethodPost {
 			var req struct {
-				UserID  int    `json:"user_id"`
+				//UserID  int    `json:"user_id"`
 				PostID  int    `json:"post_id"`
 				Content string `json:"content"`
 			}
@@ -649,7 +672,14 @@ func main() {
 				return
 			}
 
-			err := database.InsertComment(db, req.PostID, req.UserID, req.Content)
+			userID, err := session.GetUserIDFromSession(r)
+			if err != nil {
+				http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+				return
+			}
+
+
+			err = database.InsertComment(db, req.PostID, userID, req.Content)
 			if err != nil {
 				http.Error(w, `{"error": "Failed to insert comment"}`, http.StatusInternalServerError)
 				return
@@ -665,18 +695,26 @@ func main() {
 	// Image upload endpoint
 	http.HandleFunc("/api/upload-image", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-
+	
 		if r.Method != http.MethodPost {
 			http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
+	
+		// Require authentication
+		_, err := session.GetUserIDFromSession(r)
+		if err != nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
 
+	
 		// Parse multipart form (max 10MB)
 		if err := r.ParseMultipartForm(10 << 20); err != nil {
 			http.Error(w, `{"error": "Failed to parse form"}`, http.StatusBadRequest)
 			return
 		}
-
+	
 		// Get the uploaded file
 		file, header, err := r.FormFile("image")
 		if err != nil {
@@ -684,18 +722,18 @@ func main() {
 			return
 		}
 		defer file.Close()
-
+	
 		// Check file type
 		contentType := header.Header.Get("Content-Type")
 		if !strings.HasPrefix(contentType, "image/") {
 			http.Error(w, `{"error": "File must be an image"}`, http.StatusBadRequest)
 			return
 		}
-
+	
 		// Generate unique filename
 		filename := generateUniqueFilename(header.Filename)
 		filepath := fmt.Sprintf("static/images/%s", filename)
-
+	
 		// Create the file
 		dst, err := os.Create(filepath)
 		if err != nil {
@@ -704,14 +742,13 @@ func main() {
 			return
 		}
 		defer dst.Close()
-
-		// Copy the uploaded file to the destination file
+	
 		if _, err := io.Copy(dst, file); err != nil {
 			log.Printf("Failed to copy file: %v", err)
 			http.Error(w, `{"error": "Failed to save image"}`, http.StatusInternalServerError)
 			return
 		}
-
+	
 		// Return the image URL
 		imageURL := fmt.Sprintf("/static/images/%s", filename)
 		json.NewEncoder(w).Encode(map[string]string{
@@ -719,6 +756,7 @@ func main() {
 			"image_url": imageURL,
 		})
 	}))
+	
 
 	http.HandleFunc("/api/logout", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

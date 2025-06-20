@@ -262,7 +262,7 @@ function isPasswordStrong(password) {
 }
 
 // ---- Handle Logout ----
-export function handleLogout() {
+export async function handleLogout() {
     // Get the chat manager instance if it exists
     const chatManager = window.chatManager;
     if (chatManager) {
@@ -273,7 +273,17 @@ export function handleLogout() {
             chatManager.ws.close();
         }
     }
-    
+
+    // Call backend to destroy session and cookie
+    try {
+        await fetch('http://localhost:8080/api/logout', {
+            method: 'POST',
+            credentials: 'include'
+        });
+    } catch (e) {
+        // Ignore errors, proceed with logout
+    }
+
     localStorage.removeItem('currentUser');
     localStorage.removeItem('chatNotifications');
     localStorage.removeItem('onlineUsers');
@@ -463,6 +473,18 @@ export function backToHome() {
         handleLogout();
     }
 }
+
+setInterval(async () => {
+    const res = await fetch("http://localhost:8080/api/session", {
+      credentials: "include"
+    });
+  
+    if (!res.ok) {
+      localStorage.clear();
+      handleLogout(); // or showLoginForm();
+    }
+  }, 60_000); // every 1 minute
+  
 
 window.backToHome = backToHome; // Make it global
 window.showEditProfile = showEditProfile;

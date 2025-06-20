@@ -12,12 +12,69 @@
     <link rel="stylesheet" href="/static/css/features-posts.css">
     <link rel="stylesheet" href="/static/css/features-auth-profile.css">
     <!--<link rel="stylesheet" href="/static/css/features.css">-->
-
+    <style>
+        .error-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .error-code {
+            font-size: 6rem;
+            font-weight: bold;
+            color: #e74c3c;
+            margin-bottom: 1rem;
+        }
+        
+        .error-title {
+            font-size: 2rem;
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+        
+        .error-message {
+            font-size: 1.2rem;
+            color: #7f8c8d;
+            margin-bottom: 2rem;
+            max-width: 500px;
+        }
+        
+        .back-button {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+        
+        .back-button:hover {
+            background-color: #2980b9;
+        }
+    </style>
 </head>
 <body>
   <div id="app">
     <!-- Content will be dynamically inserted here -->
   </div>
+  
+  <!-- Error Page Container -->
+  <div id="error-container" class="error-container">
+    <div class="error-code">404</div>
+    <h1 class="error-title">Page Not Found</h1>
+    <p class="error-message">
+      The page you're looking for doesn't exist. It might have been moved, deleted, or you entered the wrong URL.
+    </p>
+    <a href="/" class="back-button">Go Back Home</a>
+  </div>
+  
   <!-- Add missing container -->
   <div class="chat-users-container">
     <ul id="chat-user-list" class="chat-user-list"></ul>

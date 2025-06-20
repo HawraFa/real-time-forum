@@ -91,7 +91,6 @@ export class ChatManager {
     this.ws.onclose = () => {
       console.log("WebSocket connection closed");
       this.isConnected = false;
-      this.handleReconnect();
     };
 
     this.ws.onerror = (error) => {
