@@ -1,8 +1,7 @@
-// ✅ FINAL FIXED client.go
 package websocket
 
 import (
-	"log"
+	//"log"
 	"sync"
 	"time"
 
@@ -102,7 +101,6 @@ func (c *Client) WritePump() {
 
 			err := c.Conn.WriteMessage(websocket.TextMessage, message)
 			if err != nil {
-				log.Printf("❌ Error writing message to user %d: %v", c.UserID, err)
 				return
 			}
 		}
