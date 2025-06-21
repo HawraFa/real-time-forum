@@ -110,6 +110,11 @@ func handleIncomingMessage(raw []byte) {
 			statusManager.SetOffline(int64(msg.SenderID))
 		}
 		BroadcastUserStatus(int64(msg.SenderID), msg.Content == "online", username, avatar)
+
+	case "heartbeat":
+		// Heartbeat received, connection is alive
+		// The read deadline will be reset in the ReadPump function
+		break
 	}
 }
 

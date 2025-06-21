@@ -55,10 +55,11 @@ func (c *Client) ReadPump() {
 		c.Conn.Close()
 	}()
 
+	// Set a longer read deadline
 	c.Conn.SetReadLimit(512)
-	c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	c.Conn.SetReadDeadline(time.Now().Add(120 * time.Second)) // Increased to 2 minutes
 	c.Conn.SetPongHandler(func(string) error {
-		c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		c.Conn.SetReadDeadline(time.Now().Add(120 * time.Second)) // Reset deadline on pong
 		return nil
 	})
 
@@ -67,6 +68,9 @@ func (c *Client) ReadPump() {
 		if err != nil {
 			break
 		}
+
+		// Reset read deadline on any message received
+		c.Conn.SetReadDeadline(time.Now().Add(120 * time.Second))
 
 		// Handle incoming messages
 		handleIncomingMessage(message)

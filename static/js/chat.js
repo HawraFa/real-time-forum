@@ -76,6 +76,9 @@ export class ChatManager {
         type: "get_online_users"
       }));
 
+      // Start heartbeat to keep connection alive
+      this.startHeartbeat();
+
       // Wait until currentUserId is set before loading users
       const waitForCurrentUserId = async () => {
         if (this.currentUserId) {
@@ -91,6 +94,7 @@ export class ChatManager {
     this.ws.onclose = () => {
       console.log("WebSocket connection closed");
       this.isConnected = false;
+      this.stopHeartbeat();
     };
 
     this.ws.onerror = (error) => {
@@ -105,6 +109,24 @@ export class ChatManager {
         console.error("Failed to parse WebSocket message:", err);
       }
     };
+  }
+
+  startHeartbeat() {
+    // Send heartbeat every 45 seconds to keep connection alive
+    this.heartbeatInterval = setInterval(() => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({
+          type: "heartbeat"
+        }));
+      }
+    }, 45000); // 45 seconds
+  }
+
+  stopHeartbeat() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
   }
 
   // Add this new helper method
