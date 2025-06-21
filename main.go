@@ -409,7 +409,7 @@ func main() {
 
 		userID, err := session.GetUserIDFromSession(r)
 		if err != nil {
-			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			http.Error(w, `{"error": "Please log in first"}`, http.StatusUnauthorized)
 			return
 		}
 
@@ -507,7 +507,7 @@ func main() {
 
 		userID, err := session.GetUserIDFromSession(r)
 		if err != nil {
-			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			http.Error(w, `{"error": "Please log in first"}`, http.StatusUnauthorized)
 			return
 		}
 
@@ -553,8 +553,7 @@ func main() {
 
 		currentUserID, err := session.GetUserIDFromSession(r)
 		if err != nil {
-			log.Println("❌ Unauthorized chat history request")
-			http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)
+			http.Error(w, `{"error": "Please log in first"}`, http.StatusUnauthorized)
 			return
 		}
 
@@ -562,7 +561,6 @@ func main() {
 
 		otherUserID, err := strconv.Atoi(userID)
 		if err != nil {
-			log.Println("❌ Invalid user_id parameter:", userID)
 			http.Error(w, `{"error": "Invalid user_id"}`, http.StatusBadRequest)
 			return
 		}
@@ -574,7 +572,6 @@ func main() {
 
 		messages, err := database.GetUserMessages(db, int64(currentUserID), int64(otherUserID), offset)
 		if err != nil {
-			log.Println("❌ GetUserMessages failed:", err)
 			http.Error(w, `{"error": "Failed to load messages"}`, http.StatusInternalServerError)
 			return
 		}
@@ -591,7 +588,7 @@ func main() {
 
 		currentUserID, err := session.GetUserIDFromSession(r)
 		if err != nil {
-			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			http.Error(w, `{"error": "Please log in first"}`, http.StatusUnauthorized)
 			return
 		}
 
@@ -671,7 +668,7 @@ func main() {
 
 			userID, err := session.GetUserIDFromSession(r)
 			if err != nil {
-				http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+				http.Error(w, `{"error": "Please log in first"}`, http.StatusUnauthorized)
 				return
 			}
 
@@ -700,7 +697,7 @@ func main() {
 		// Require authentication
 		_, err := session.GetUserIDFromSession(r)
 		if err != nil {
-			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			http.Error(w, `{"error": "Please log in first!"}`, http.StatusUnauthorized)
 			return
 		}
 
@@ -760,6 +757,28 @@ func main() {
 		sessionData.Save(r, w)
 		json.NewEncoder(w).Encode(map[string]any{"success": true})
 	}))
+
+	http.HandleFunc("/api/session", enableCORS(func(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    userID, err := session.GetUserIDFromSession(r)
+    if err != nil {
+        http.Error(w, `{"error": "unauthenticated"}`, http.StatusUnauthorized)
+        return
+    }
+
+    user, err := database.GetUserByID(database.DB, userID)
+    if err != nil {
+        http.Error(w, `{"error": "user not found"}`, http.StatusInternalServerError)
+        return
+    }
+
+    json.NewEncoder(w).Encode(map[string]interface{}{
+        "user": user,
+    })
+	}))
+
+
+
 
 	log.Println("Server started at http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))

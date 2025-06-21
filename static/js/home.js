@@ -3,6 +3,7 @@ import { reactToPost } from './reactions.js';
 import { showPostDetails } from "./post.js"; 
 
 export async function showHomePage(user) {
+    
     const app = document.getElementById("app");
     app.innerHTML = `
         <nav class="navbar">

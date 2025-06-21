@@ -87,38 +87,46 @@ async function init() {
     }
     
     const currentUser = localStorage.getItem('currentUser');
-    
+
     if (!currentUser) {
-        fetch("/api/session", {
-            method: "GET",
-            credentials: "include"
-        })
-        .then(res => res.json())
-        .then(data => {
-            localStorage.setItem("currentUser", JSON.stringify(data.user));
-            showHomePage(data.user);
-        })
-        .catch(err => {
-            showLoginForm();
-        });
+    fetch("/api/session", {
+        method: "GET",
+        credentials: "include"
+    })
+    .then(res => {
+        if (!res.ok) throw new Error("unauthenticated");
+        return res.json();
+    })
+    .then(data => {
+        localStorage.setItem("currentUser", JSON.stringify(data.user));
+        showHomePage(data.user); 
+    })
+    .catch(err => {
+        showLoginForm(); // ✅ sidebar/chat will never show if you cleaned HTML
+    });
     } else {
-        // Minimal fix: verify session is still valid
-        try {
-            const res = await fetch("/api/users", {
-                method: "GET",
-                credentials: "include"
-            });
-            if (res.status === 401 || res.status === 403) {
-                localStorage.removeItem("currentUser");
-                showLoginForm();
-                return;
-            }
-        } catch (e) {
-            localStorage.removeItem("currentUser");
-            showLoginForm();
-            return;
+    fetch("/api/session", {
+        method: "GET",
+        credentials: "include"
+    })
+    .then(res => {
+        if (!res.ok) {
+        localStorage.removeItem("currentUser");
+        showLoginForm();
+        return;
         }
-        showHomePage(JSON.parse(currentUser));
+        return res.json();
+    })
+    .then(data => {
+        if (data) {
+        localStorage.setItem("currentUser", JSON.stringify(data.user));
+        showHomePage(data.user);
+        }
+    })
+    .catch(err => {
+        localStorage.removeItem("currentUser");
+        showLoginForm();
+    });
     }
 
     // Initialize theme
