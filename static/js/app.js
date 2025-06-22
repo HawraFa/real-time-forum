@@ -79,7 +79,7 @@ function updateThemeIcon(theme) {
     }
 }
 
-// Initialize the application
+// Initialize 
 async function init() {
     // Check route validity first
     if (!checkRoute()) {
@@ -102,7 +102,7 @@ async function init() {
         showHomePage(data.user); 
     })
     .catch(err => {
-        showLoginForm(); // ✅ sidebar/chat will never show if you cleaned HTML
+        showLoginForm(); 
     });
     } else {
     fetch("/api/session", {

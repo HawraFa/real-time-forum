@@ -166,12 +166,12 @@ document.addEventListener('click', function(event) {
     }
 });
 
-// Show create post form (merged with dynamic category loading from friend)
+
 export async function showCreatePost() {
     const app = document.getElementById("app");
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
 
-    // Fetch categories from backend (friend's version)
+   
     let categoryOptions = "<option value=''>Loading...</option>";
     try {
         const res = await fetch("http://localhost:8080/api/categories");
@@ -421,7 +421,7 @@ window.showMyPosts = async function () {
     }
 };
 
-// Handle post creation (merged, friend's version uses consistent naming and parseInt for IDs)
+
 async function handleCreatePost(event) {
     event.preventDefault();
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));

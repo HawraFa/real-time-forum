@@ -544,7 +544,6 @@ func main() {
 		http.ServeFile(w, r, "static/index.html")
 	})
 
-	// 🔁 NEW: Chat History API
 	http.HandleFunc("/api/chat/history", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
