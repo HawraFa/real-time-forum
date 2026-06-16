@@ -58,6 +58,8 @@ database/
 websocket/
 session/
 static/ (HTML/CSS/JS)
-Contributors
+
+
+**Contributors**
 Hawra Fadhel
 Khaireya Alhayki
