@@ -1,4 +1,4 @@
-Real-Time Forum
+**Real-Time Forum**
 A simple real-time forum built in Go with WebSocket-powered live updates and a minimal frontend.
 
 Quick Start
