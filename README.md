@@ -1,65 +1,76 @@
-## Real-Time Forum
+# Real-Time Forum
 
-A simple real-time forum built in Go with WebSocket-powered live updates and a minimal frontend.
+A simple real-time forum built in Go that demonstrates live updates, real-time presence, and a minimal single-page frontend. It is suitable as a learning project or a starting point for lightweight discussion applications.
 
-Quick Start
-Real-Time Forum
-A simple real-time forum written in Go that demonstrates live updates, real-time presence, and a small single-page frontend. It is suitable as a learning project or a starting point for lightweight discussion apps.
+## Features
 
-What this project includes
-Real-time messaging and presence using WebSockets (websocket/).
-Persistent data access and queries in the database/ package (posts, comments, reactions, private messages, categories, users).
-Session handling in the session/ package for basic user sessions.
-Minimal frontend in static/ (HTML, CSS, and JavaScript) that interacts with the WebSocket backend for live updates.
-Key Features
-Create and list posts and comments
-Real-time updates for new posts, comments, and reactions
-Private messages between users
-User presence (online/offline)
-Reactions and counts on posts/comments
-Category support for organizing posts
-Quick Start
-Prerequisites:
+- Create and list posts and comments  
+- Real-time updates for posts, comments, and reactions (WebSockets)  
+- Private messaging between users  
+- User presence (online/offline status)  
+- Reactions and counters on posts/comments  
+- Category support for organizing posts  
 
-Go 1.18 or newer
-A SQL database (Postgres, MySQL, or SQLite). Configure the connection for the database package before running.
-Example environment variables (adjust to your setup):
+## Project Structure
 
-PORT — server port (default 8080) $env:DB_DRIVER="postgres" Build a binary:
-- `database/` - SQL schema helpers, queries, and DB initialization
+main.go  
+database/        # DB schema, queries, initialization  
+websocket/       # WebSocket connection and real-time logic  
+session/         # User session management  
+static/          # Frontend (HTML, CSS, JavaScript)  
 
+## Requirements
 
+- Go 1.18 or newer  
+- SQL database (PostgreSQL, MySQL, or SQLite)  
 
-Minimal Go forum with WebSocket-powered live updates.
+## Environment Variables
+
+PORT=8080  
+DB_DRIVER=postgres  
+DB_DSN=postgres://user:password@localhost:5432/forumdb?sslmode=disable  
 
 ## Quick Start
 
-Prerequisites: Go 1.18+ and a configured SQL database.
+Clone the repository:
 
-Run locally:
+git clone https://github.com/HawraFa/forum.git  
+cd forum  
 
-```powershell
-go run main.go
-Open http://localhost:8080 in your browser.
+Run the project:
 
-Common env vars:
+go run main.go  
 
-DB_DRIVER (e.g. postgres)
+Open in browser:
 
-DB_DSN (database DSN). Example Postgres DSN:
+http://localhost:8080  
 
-postgres://user:pass@localhost:5432/forumdb?sslmode=disable
+## Build Binary (Optional)
 
-PORT (default 8080)
+go build -o forum  
 
-Layout
-main.go
-database/
-websocket/
-session/
-static/ (HTML/CSS/JS)
+## Core Modules
 
+database/  
+SQL schema, queries, and database initialization  
 
-**Contributors**
-Hawra Fadhel
-Khaireya Alhayki
+websocket/  
+Real-time communication layer  
+
+session/  
+Authentication and session handling  
+
+static/  
+Frontend interface (HTML, CSS, JavaScript)  
+
+## Contributors
+
+Hawra Fadhel  
+Khaireya Alhayki  
+
+## Notes
+
+This project demonstrates:
+- WebSocket-based real-time systems  
+- Backend architecture in Go  
+- Simple single-page application integration  
